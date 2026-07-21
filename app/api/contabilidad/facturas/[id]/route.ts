@@ -4,9 +4,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
+import { mapFacturaCompraRow } from '@/lib/services/mappers';
 import { z } from 'zod';
 
 const PatchSchema = z.object({
@@ -14,16 +14,24 @@ const PatchSchema = z.object({
 });
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: { id: string } },
 ) {
-  const user = await getAuthenticatedUser(_request);
+  const user = await getAuthenticatedUser(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const snap = await adminDb.collection('facturas_compra').doc(params.id).get();
-  if (!snap.exists) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 });
+  const { data: factura, error } = await supabaseAdmin
+    .from('facturas_compra')
+    .select('*, factura_compra_lineas(*), factura_compra_retenciones(*)')
+    .eq('id', params.id)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: 'Error al obtener factura' }, { status: 500 });
+  if (!factura) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 });
 
-  return NextResponse.json({ ok: true, data: { id: snap.id, ...snap.data() } });
+  return NextResponse.json({
+    ok: true,
+    data: mapFacturaCompraRow(factura, factura.factura_compra_lineas, factura.factura_compra_retenciones),
+  });
 }
 
 export async function PATCH(
@@ -42,15 +50,14 @@ export async function PATCH(
     return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
   }
 
-  const ref = adminDb.collection('facturas_compra').doc(params.id);
-  const snap = await ref.get();
-  if (!snap.exists) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 });
-
-  await ref.update({
-    estado: parsed.data.estado,
-    actualizadoEn: Timestamp.now(),
-    actualizadoPor: user.uid,
-  });
+  const { data: updated, error } = await supabaseAdmin
+    .from('facturas_compra')
+    .update({ estado: parsed.data.estado })
+    .eq('id', params.id)
+    .select('id')
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: 'Error al actualizar factura' }, { status: 500 });
+  if (!updated) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 });
 
   return NextResponse.json({ ok: true });
 }

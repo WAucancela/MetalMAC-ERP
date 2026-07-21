@@ -10,9 +10,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
+import type { EstadoOrdenProduccion } from '@/types/metalmac.types';
 
 function escapeCsv(value: unknown): string {
   const str = value === null || value === undefined ? '' : String(value);
@@ -24,15 +24,6 @@ function escapeCsv(value: unknown): string {
 
 function rowToCsv(fields: unknown[]): string {
   return fields.map(escapeCsv).join(',');
-}
-
-function tsToDate(ts: unknown): string {
-  if (!ts) return '';
-  if (ts instanceof Timestamp) return ts.toDate().toISOString().slice(0, 10);
-  if (typeof ts === 'object' && ts !== null && 'seconds' in ts) {
-    return new Date((ts as { seconds: number }).seconds * 1000).toISOString().slice(0, 10);
-  }
-  return '';
 }
 
 export async function GET(request: Request) {
@@ -60,28 +51,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    let query = adminDb
-      .collection('ordenes_produccion')
-      .where('creadoEn', '>=', Timestamp.fromDate(desde))
-      .where('creadoEn', '<=', Timestamp.fromDate(hasta))
-      .orderBy('creadoEn', 'asc');
+    // Un solo round trip: OP + nombre/unidad del producto (join vía FK)
+    let query = supabaseAdmin
+      .from('ordenes_produccion')
+      .select('codigo, cantidad, estado, creado_en, fecha_entrega, costo_estimado, costo_real, proyecto_id, productos(nombre, unidad_venta)')
+      .gte('creado_en', desde.toISOString())
+      .lte('creado_en', hasta.toISOString())
+      .order('creado_en', { ascending: true });
 
-    if (estado) {
-      query = query.where('estado', '==', estado) as typeof query;
-    }
+    if (estado) query = query.eq('estado', estado as EstadoOrdenProduccion);
 
-    const snap = await query.get();
-
-    // Enriquecer con nombre de producto
-    const productoIds = [...new Set(snap.docs.map((d) => d.data().productoId as string).filter(Boolean))];
-    const productosMap: Record<string, string> = {};
-
-    const BATCH = 30;
-    for (let i = 0; i < productoIds.length; i += BATCH) {
-      const chunk = productoIds.slice(i, i + BATCH);
-      const pSnap = await adminDb.collection('productos').where('__name__', 'in', chunk).get();
-      pSnap.docs.forEach((d) => { productosMap[d.id] = d.data().nombre ?? d.id; });
-    }
+    const { data, error } = await query;
+    if (error) throw error;
 
     interface OPRow {
       codigo:          string;
@@ -96,21 +77,18 @@ export async function GET(request: Request) {
       proyectoId:      string;
     }
 
-    const rows: OPRow[] = snap.docs.map((doc) => {
-      const d = doc.data();
-      return {
-        codigo:        d.codigo         ?? '',
-        producto:      productosMap[d.productoId] ?? d.productoId ?? '',
-        cantidad:      Number(d.cantidad ?? 0),
-        unidad:        d.unidadId       ?? '',
-        estado:        d.estado         ?? '',
-        creadoEn:      tsToDate(d.creadoEn),
-        fechaEntrega:  tsToDate(d.fechaEntrega),
-        costoEstimado: Number(d.costoEstimado ?? 0),
-        costoReal:     Number(d.costoReal     ?? 0),
-        proyectoId:    d.proyectoId     ?? '',
-      };
-    });
+    const rows: OPRow[] = (data ?? []).map((op) => ({
+      codigo:        op.codigo,
+      producto:      op.productos?.nombre ?? '',
+      cantidad:      Number(op.cantidad),
+      unidad:        op.productos?.unidad_venta ?? '',
+      estado:        op.estado,
+      creadoEn:      op.creado_en.slice(0, 10),
+      fechaEntrega:  op.fecha_entrega,
+      costoEstimado: Number(op.costo_estimado),
+      costoReal:     Number(op.costo_real ?? 0),
+      proyectoId:    op.proyecto_id ?? '',
+    }));
 
     if (format === 'json') {
       return NextResponse.json({

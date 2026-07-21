@@ -4,10 +4,12 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import {
+  getAuthenticatedUser, canWrite, encodeCursor, decodeCursor, cursorFilterAntesDe,
+} from '@/app/api/_helpers';
 import { FacturaCompraSchema, FacturasQuerySchema } from '@/lib/validations/sri.schema';
+import { mapFacturaCompraRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -23,31 +25,39 @@ export async function GET(request: Request) {
     );
   }
 
-  const { proveedorId, estado, desde, hasta, limit: pageLimit, startAfter: cursorId } = queryParsed.data;
+  const { proveedorId, estado, desde, hasta, limit: pageLimit, startAfter: cursor } = queryParsed.data;
 
   try {
-    // Admin SDK usa API de encadenamiento (no funcional como el Client SDK)
-    let q = adminDb
-      .collection('facturas_compra')
-      .orderBy('fechaEmision', 'desc') as Query;
+    let query = supabaseAdmin
+      .from('facturas_compra')
+      .select('*, factura_compra_lineas(*), factura_compra_retenciones(*)')
+      .order('fecha_emision', { ascending: false })
+      .order('id', { ascending: false });
 
-    if (proveedorId) q = q.where('proveedorId', '==', proveedorId);
-    if (estado)      q = q.where('estado', '==', estado);
-    if (desde)       q = q.where('fechaEmision', '>=', Timestamp.fromDate(new Date(desde)));
-    if (hasta)       q = q.where('fechaEmision', '<=', Timestamp.fromDate(new Date(hasta)));
+    if (proveedorId) query = query.eq('proveedor_id', proveedorId);
+    if (estado)      query = query.eq('estado', estado);
+    if (desde)       query = query.gte('fecha_emision', desde);
+    if (hasta)       query = query.lte('fecha_emision', hasta);
 
-    if (cursorId) {
-      const cursorDoc = await adminDb.collection('facturas_compra').doc(cursorId).get();
-      if (cursorDoc.exists) q = q.startAfter(cursorDoc);
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      if (decoded) query = query.or(cursorFilterAntesDe('fecha_emision', decoded));
     }
+    query = query.limit(pageLimit);
 
-    q = q.limit(pageLimit);
+    const { data, error } = await query;
+    if (error) throw error;
 
-    const snap = await q.get();
-    const facturas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const nextCursor = snap.docs.length === pageLimit
-      ? snap.docs[snap.docs.length - 1].id
-      : null;
+    const rows = data ?? [];
+    const facturas = rows.map((row) =>
+      mapFacturaCompraRow(row, row.factura_compra_lineas, row.factura_compra_retenciones),
+    );
+
+    const last = rows.at(-1);
+    const nextCursor =
+      rows.length === pageLimit && last
+        ? encodeCursor({ valor: last.fecha_emision, id: last.id })
+        : null;
 
     return NextResponse.json({ ok: true, data: facturas, nextCursor });
   } catch (e) {
@@ -76,30 +86,66 @@ export async function POST(request: Request) {
   const data = parsed.data;
 
   try {
-    // Verificar clave de acceso duplicada
-    const existing = await adminDb
-      .collection('facturas_compra')
-      .where('claveAcceso', '==', data.claveAcceso)
-      .limit(1)
-      .get();
+    const { data: factura, error } = await supabaseAdmin
+      .from('facturas_compra')
+      .insert({
+        proveedor_id: data.proveedorId,
+        clave_acceso: data.claveAcceso,
+        numero_factura: data.numeroFactura,
+        fecha_emision: data.fechaEmision,
+        subtotal_sin_iva: data.subtotalSinIva,
+        iva: data.iva,
+        total: data.total,
+        xml_url: data.xmlUrl,
+        estado: data.estado,
+      })
+      .select('id')
+      .single();
 
-    if (!existing.empty) {
-      return NextResponse.json(
-        { error: `Ya existe una factura con la clave de acceso ${data.claveAcceso}` },
-        { status: 409 },
-      );
+    if (error) {
+      // Violación de unicidad de claveAcceso (reemplaza el pre-chequeo + 409 de
+      // la versión Firestore, que no era atómico frente al insert)
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: `Ya existe una factura con la clave de acceso ${data.claveAcceso}` },
+          { status: 409 },
+        );
+      }
+      throw error;
     }
 
-    const fechaEmision = Timestamp.fromDate(new Date(data.fechaEmision));
+    if (data.lineas.length > 0) {
+      const { error: lineasError } = await supabaseAdmin.from('factura_compra_lineas').insert(
+        data.lineas.map((l, orden) => ({
+          factura_id: factura.id,
+          orden,
+          codigo_proveedor: l.codigoProveedor,
+          descripcion: l.descripcion,
+          cantidad: l.cantidad,
+          precio_unitario: l.precioUnitario,
+          descuento: l.descuento,
+          subtotal: l.subtotal,
+          material_id: l.materialId,
+          cantidad_convertida: l.cantidadConvertida,
+        })),
+      );
+      if (lineasError) throw lineasError;
+    }
 
-    const docRef = await adminDb.collection('facturas_compra').add({
-      ...data,
-      fechaEmision,
-      creadoEn:   Timestamp.now(),
-      creadoPor:  user.uid,
-    });
+    if (data.retenciones.length > 0) {
+      const { error: retencionesError } = await supabaseAdmin.from('factura_compra_retenciones').insert(
+        data.retenciones.map((r) => ({
+          factura_id: factura.id,
+          tipo: r.tipo,
+          porcentaje: r.porcentaje,
+          base: r.base,
+          valor: r.valor,
+        })),
+      );
+      if (retencionesError) throw retencionesError;
+    }
 
-    return NextResponse.json({ ok: true, id: docRef.id }, { status: 201 });
+    return NextResponse.json({ ok: true, id: factura.id }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/contabilidad/facturas]', e);
     return NextResponse.json({ error: 'Error al crear factura' }, { status: 500 });

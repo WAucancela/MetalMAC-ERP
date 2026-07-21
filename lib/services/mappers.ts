@@ -7,7 +7,7 @@
 import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
-  GastoProyecto,
+  GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -19,6 +19,9 @@ type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
 type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
 type ProyectoRow = Database['public']['Tables']['proyectos']['Row'];
 type GastoProyectoRow = Database['public']['Tables']['gastos_proyecto']['Row'];
+type FacturaCompraRow = Database['public']['Tables']['facturas_compra']['Row'];
+type FacturaCompraLineaRow = Database['public']['Tables']['factura_compra_lineas']['Row'];
+type FacturaCompraRetencionRow = Database['public']['Tables']['factura_compra_retenciones']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -142,6 +145,42 @@ export function mapGastoProyectoRow(row: GastoProyectoRow): GastoProyecto {
     comprobante: row.comprobante,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
+  };
+}
+
+export function mapFacturaCompraRow(
+  row: FacturaCompraRow,
+  lineas: FacturaCompraLineaRow[] = [],
+  retenciones: FacturaCompraRetencionRow[] = [],
+): FacturaCompra {
+  return {
+    id: row.id,
+    proveedorId: row.proveedor_id,
+    claveAcceso: row.clave_acceso,
+    numeroFactura: row.numero_factura,
+    fechaEmision: row.fecha_emision,
+    subtotalSinIva: Number(row.subtotal_sin_iva),
+    iva: Number(row.iva),
+    total: Number(row.total),
+    xmlUrl: row.xml_url,
+    estado: row.estado,
+    lineas: [...lineas].sort((a, b) => a.orden - b.orden).map((l): LineaFacturaCompra => ({
+      codigoProveedor: l.codigo_proveedor,
+      descripcion: l.descripcion,
+      cantidad: Number(l.cantidad),
+      precioUnitario: Number(l.precio_unitario),
+      descuento: Number(l.descuento),
+      subtotal: Number(l.subtotal),
+      materialId: l.material_id,
+      cantidadConvertida: l.cantidad_convertida === null ? null : Number(l.cantidad_convertida),
+    })),
+    retenciones: retenciones.map((r): Retencion => ({
+      tipo: r.tipo,
+      porcentaje: Number(r.porcentaje),
+      base: Number(r.base),
+      valor: Number(r.valor),
+    })),
+    creadoEn: row.creado_en,
   };
 }
 

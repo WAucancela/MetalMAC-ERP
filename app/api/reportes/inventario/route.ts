@@ -4,12 +4,13 @@
  *
  * Query params:
  *   format=csv (default) | json
- *   tipo=MATERIA_PRIMA | INSUMO | HERRAMIENTA (opcional)
+ *   tipo=PLANCHA | TUBO | PERFIL | VARILLA | CONSUMIBLE (opcional)
  */
 
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
+import type { TipoMaterial } from '@/types/metalmac.types';
 
 function escapeCsv(value: unknown): string {
   const str = value === null || value === undefined ? '' : String(value);
@@ -32,42 +33,16 @@ export async function GET(request: Request) {
   const tipo   = searchParams.get('tipo');
 
   try {
-    // 1. Obtener materiales activos
-    let matQuery = adminDb.collection('materiales').where('activo', '==', true);
-    if (tipo) matQuery = matQuery.where('tipo', '==', tipo) as typeof matQuery;
-    const matSnap = await matQuery.get();
+    // Un solo round trip: materiales activos + su stock + su unidad de medida (joins vía FK)
+    let query = supabaseAdmin
+      .from('materiales')
+      .select('codigo_interno, nombre, tipo, unidad_base_id, stock(*), unidades_medida(simbolo, nombre)')
+      .eq('activo', true);
+    if (tipo) query = query.eq('tipo', tipo as TipoMaterial);
 
-    if (matSnap.empty) {
-      if (format === 'json') return NextResponse.json({ ok: true, data: [] });
-      return new NextResponse('codigoInterno,nombre,tipo,unidad,disponible,reservada,minima,ubicacion\n', {
-        headers: {
-          'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': 'attachment; filename="inventario.csv"',
-        },
-      });
-    }
+    const { data, error } = await query;
+    if (error) throw error;
 
-    // 2. Obtener stock de todos los materiales en batch
-    const materialIds = matSnap.docs.map((d) => d.id);
-
-    // Batches de 30 para whereIn
-    const BATCH = 30;
-    const stockDocs: Record<string, Record<string, unknown>> = {};
-    for (let i = 0; i < materialIds.length; i += BATCH) {
-      const chunk = materialIds.slice(i, i + BATCH);
-      const stockSnap = await adminDb
-        .collection('stock')
-        .where('__name__', 'in', chunk)
-        .get();
-      stockSnap.docs.forEach((d) => { stockDocs[d.id] = d.data(); });
-    }
-
-    // 3. Obtener unidades de medida
-    const unidadesSnap = await adminDb.collection('unidades_medida').get();
-    const unidades: Record<string, string> = {};
-    unidadesSnap.docs.forEach((d) => { unidades[d.id] = d.data().simbolo ?? d.data().nombre; });
-
-    // 4. Construir rows
     interface ReporteRow {
       codigoInterno: string;
       nombre: string;
@@ -79,18 +54,18 @@ export async function GET(request: Request) {
       ubicacion: string;
     }
 
-    const rows: ReporteRow[] = matSnap.docs.map((doc) => {
-      const mat = doc.data();
-      const stock = stockDocs[doc.id] ?? {};
+    const rows: ReporteRow[] = (data ?? []).map((mat) => {
+      const stock = mat.stock;
+      const unidad = mat.unidades_medida;
       return {
-        codigoInterno: mat.codigoInterno ?? '',
-        nombre:        mat.nombre ?? '',
-        tipo:          mat.tipo ?? '',
-        unidad:        unidades[mat.unidadId] ?? mat.unidadId ?? '',
-        disponible:    Number(stock.cantidadDisponible ?? 0),
-        reservada:     Number(stock.cantidadReservada  ?? 0),
-        minima:        Number(stock.cantidadMinima     ?? 0),
-        ubicacion:     String(stock.ubicacion          ?? ''),
+        codigoInterno: mat.codigo_interno,
+        nombre: mat.nombre,
+        tipo: mat.tipo,
+        unidad: unidad?.simbolo ?? unidad?.nombre ?? mat.unidad_base_id,
+        disponible: Number(stock?.cantidad_disponible ?? 0),
+        reservada: Number(stock?.cantidad_reservada ?? 0),
+        minima: Number(stock?.cantidad_minima ?? 0),
+        ubicacion: stock?.ubicacion ?? '',
       };
     });
 
@@ -98,6 +73,15 @@ export async function GET(request: Request) {
 
     if (format === 'json') {
       return NextResponse.json({ ok: true, data: rows, generadoEn: new Date().toISOString() });
+    }
+
+    if (rows.length === 0) {
+      return new NextResponse('Código Interno,Nombre,Tipo,Unidad,Disponible,Reservada,Mínima,Ubicación\n', {
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="inventario.csv"',
+        },
+      });
     }
 
     // CSV
