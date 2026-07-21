@@ -88,6 +88,9 @@ begin
 
     -- Clamp defensivo: nunca libera más de lo que hay realmente reservado (protege contra doble-liberación).
     v_a_liberar := least(v_mr.cantidad_reservada, v_stock.cantidad_reservada);
+    -- Si ya no queda nada reservado (p.ej. liberado por otra vía), no-op: movimientos_inventario
+    -- exige cantidad > 0, así que una fila en cero se salta en vez de fallar.
+    if v_a_liberar <= 0 then continue; end if;
 
     update stock set
       cantidad_disponible = cantidad_disponible + v_a_liberar,
@@ -121,6 +124,7 @@ begin
     if not found then continue; end if;
 
     v_a_consumir := least(v_mr.cantidad_reservada, v_stock.cantidad_reservada);
+    if v_a_consumir <= 0 then continue; end if;
 
     -- `cantidad_disponible` ya se decrementó al reservar; consumir sólo baja `cantidad_reservada`.
     update stock set
