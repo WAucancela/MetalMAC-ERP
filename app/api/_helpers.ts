@@ -4,7 +4,7 @@
  */
 import { NextResponse } from 'next/server';
 import type { ZodError } from 'zod';
-import { adminAuth } from '@/lib/firebase-admin';
+import { jwtVerify, createRemoteJWKSet } from 'jose';
 
 // ── Respuestas tipadas ────────────────────────────────────────────────────────
 
@@ -52,9 +52,20 @@ export interface AuthenticatedUser {
   rol: string;
 }
 
+// Los proyectos Supabase nuevos (incluida cualquier instancia local del CLI) firman los
+// JWT con claves asimétricas (ES256) publicadas en el endpoint JWKS del proyecto — no con
+// el secreto HS256 compartido "legacy" (SUPABASE_JWT_SECRET) que usan los proyectos viejos.
+// `createRemoteJWKSet` cachea las claves en memoria tras la primera verificación, así que
+// el costo de red sólo se paga una vez por arranque (no por request) — igual perfil de
+// latencia que `adminAuth.verifyIdToken` en la versión Firebase.
+const JWKS = createRemoteJWKSet(
+  new URL('/auth/v1/.well-known/jwks.json', process.env.NEXT_PUBLIC_SUPABASE_URL!),
+);
+
 /**
- * Verifica el Bearer token de Firebase Auth en el header Authorization.
- * Retorna el usuario autenticado o null si el token es inválido/ausente.
+ * Verifica el Bearer token de Supabase Auth en el header Authorization.
+ * Retorna el usuario autenticado o null si el token es inválido/ausente, o si
+ * no trae un claim `rol` válido en `app_metadata` (sin fallback a un rol falso).
  */
 export async function getAuthenticatedUser(
   request: Request,
@@ -64,11 +75,15 @@ export async function getAuthenticatedUser(
 
   const token = authHeader.slice(7);
   try {
-    const decoded = await adminAuth.verifyIdToken(token);
+    const { payload } = await jwtVerify(token, JWKS);
+    const appMetadata = payload.app_metadata as Record<string, unknown> | undefined;
+    const rol = appMetadata?.rol as string | undefined;
+    if (!rol) return null;
+
     return {
-      uid:   decoded.uid,
-      email: decoded.email,
-      rol:   (decoded.rol as string) ?? 'VIEWER',
+      uid:   payload.sub!,
+      email: payload.email as string | undefined,
+      rol,
     };
   } catch {
     return null;
