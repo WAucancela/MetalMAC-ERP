@@ -2,144 +2,73 @@
  * inventario.service.ts
  *
  * Lógica de negocio de inventario para MetalMAC ERP.
- * Todas las operaciones que modifican /stock/{id} DEBEN usar runTransaction.
+ * Toda operación que modifica `stock` pasa por la función plpgsql
+ * `registrar_movimiento_inventario` (vía RPC) — la atomicidad la garantiza
+ * Postgres con `SELECT ... FOR UPDATE`, no este archivo.
  * Usa decimal.js para aritmética monetaria y de cantidades (sin pérdida de precisión).
  *
- * Usa Admin SDK (server-only) — llamado exclusivamente desde API Routes.
- * Las reglas de Firestore exigen `isAuth()` para leer y `allow write: if false`
- * en /stock y /movimientos_inventario, así que estas escrituras SOLO pueden
- * hacerse con el Admin SDK (que ignora las reglas de seguridad).
+ * Usa el cliente service_role (server-only) — llamado exclusivamente desde API Routes.
  */
 
-import { FieldValue } from 'firebase-admin/firestore';
 import Decimal from 'decimal.js';
-import { adminDb } from '../firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type {
   MovimientoInput,
-  MovimientoInventario,
-  Stock,
   Material,
   TablaEquivalencia,
-  TipoMovimiento,
 } from '../../types/metalmac.types';
 import {
   StockInsuficienteError,
   MaterialNoEncontradoError,
 } from '../../types/metalmac.types';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tipos que reducen stock (salidas y reservas)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const TIPOS_SALIDA: ReadonlySet<TipoMovimiento> = new Set([
-  'SALIDA',
-  'AJUSTE_NEGATIVO',
-  'RESERVA',
-  'MERMA',
-]);
-
-const TIPOS_ENTRADA: ReadonlySet<TipoMovimiento> = new Set([
-  'ENTRADA',
-  'AJUSTE_POSITIVO',
-  'LIBERACION',
-  'DEVOLUCION',
-]);
+import { mapMaterialRow } from '@/lib/services/mappers';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // registrarMovimiento
 //
-// Registra un movimiento de inventario DENTRO de una Firestore Transaction para
-// garantizar consistencia entre /stock/{materialId} y /movimientos_inventario/{id}.
+// Registra un movimiento de inventario vía la función plpgsql
+// `registrar_movimiento_inventario`, que actualiza `stock` e inserta el
+// `movimientos_inventario` correspondiente en una sola transacción con
+// `SELECT ... FOR UPDATE` sobre la fila de stock.
 //
 // Lanza StockInsuficienteError si el tipo es de salida y no hay stock suficiente.
-// Lanza MaterialNoEncontradoError si el documento /stock/{materialId} no existe.
+// Lanza MaterialNoEncontradoError si no existe la fila stock/{materialId}.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function registrarMovimiento(input: MovimientoInput): Promise<string> {
-  const stockRef = adminDb.collection('stock').doc(input.materialId);
-  const nuevoMovimientoRef = adminDb.collection('movimientos_inventario').doc(); // pre-generar ID
+  if (input.cantidad <= 0) {
+    throw new RangeError(`La cantidad debe ser mayor a 0. Recibido: ${input.cantidad}`);
+  }
 
-  await adminDb.runTransaction(async (transaction) => {
-    const stockSnap = await transaction.get(stockRef);
-
-    if (!stockSnap.exists) {
-      throw new MaterialNoEncontradoError(input.materialId);
-    }
-
-    const stockData = stockSnap.data()! as Omit<Stock, 'materialId'>;
-    const disponibleActual = new Decimal(stockData.cantidadDisponible);
-    const reservadaActual  = new Decimal(stockData.cantidadReservada);
-    const cantidadMov      = new Decimal(input.cantidad);
-
-    if (cantidadMov.lte(0)) {
-      throw new RangeError(`La cantidad debe ser mayor a 0. Recibido: ${input.cantidad}`);
-    }
-
-    let nuevaDisponible: Decimal = disponibleActual;
-    let nuevaReservada: Decimal  = reservadaActual;
-
-    if (TIPOS_SALIDA.has(input.tipo)) {
-      // Para RESERVA: mueve de disponible → reservada (no reduce el total)
-      if (input.tipo === 'RESERVA') {
-        if (disponibleActual.lt(cantidadMov)) {
-          throw new StockInsuficienteError(
-            input.materialId,
-            disponibleActual.toNumber(),
-            cantidadMov.toNumber(),
-          );
-        }
-        nuevaDisponible = disponibleActual.minus(cantidadMov);
-        nuevaReservada  = reservadaActual.plus(cantidadMov);
-      } else {
-        // SALIDA, AJUSTE_NEGATIVO, MERMA: reduce disponible
-        if (disponibleActual.lt(cantidadMov)) {
-          throw new StockInsuficienteError(
-            input.materialId,
-            disponibleActual.toNumber(),
-            cantidadMov.toNumber(),
-          );
-        }
-        nuevaDisponible = disponibleActual.minus(cantidadMov);
-      }
-    } else if (TIPOS_ENTRADA.has(input.tipo)) {
-      if (input.tipo === 'LIBERACION') {
-        // Libera de reservada → disponible
-        const liberacion = Decimal.min(cantidadMov, reservadaActual);
-        nuevaReservada  = reservadaActual.minus(liberacion);
-        nuevaDisponible = disponibleActual.plus(liberacion);
-      } else {
-        // ENTRADA, AJUSTE_POSITIVO, DEVOLUCION: aumenta disponible
-        nuevaDisponible = disponibleActual.plus(cantidadMov);
-      }
-    }
-
-    // Actualizar stock
-    transaction.update(stockRef, {
-      cantidadDisponible: nuevaDisponible.toNumber(),
-      cantidadReservada:  nuevaReservada.toNumber(),
-      actualizadoEn: FieldValue.serverTimestamp(),
-    });
-
-    // Crear movimiento
-    const movimiento: Omit<MovimientoInventario, 'id'> = {
-      materialId:       input.materialId,
-      tipo:             input.tipo,
-      cantidad:         cantidadMov.toNumber(),
-      stockAnterior:    disponibleActual.toNumber(),
-      stockPosterior:   nuevaDisponible.toNumber(),
-      costoUnitario:    new Decimal(input.costoUnitario).toNumber(),
-      documentoTipo:    input.documentoTipo,
-      documentoId:      input.documentoId ?? null,
-      numeroReferencia: input.numeroReferencia,
-      notas:            input.notas ?? '',
-      usuarioId:        input.usuarioId,
-      fecha:            FieldValue.serverTimestamp() as unknown as MovimientoInventario['fecha'],
-    };
-
-    transaction.set(nuevoMovimientoRef, movimiento);
+  const { data, error } = await supabaseAdmin.rpc('registrar_movimiento_inventario', {
+    p_material_id: input.materialId,
+    p_tipo: input.tipo,
+    p_cantidad: input.cantidad,
+    p_costo_unitario: input.costoUnitario,
+    p_documento_tipo: input.documentoTipo,
+    // `supabase gen types` no marca los args de funciones como nullable aunque el
+    // parámetro Postgres (uuid, sin default) sí acepta NULL — cast documentado.
+    p_documento_id: (input.documentoId ?? null) as string,
+    p_numero_referencia: input.numeroReferencia,
+    p_notas: input.notas ?? '',
+    p_usuario_id: input.usuarioId,
   });
 
-  return nuevoMovimientoRef.id;
+  if (error) {
+    const detail = error.details ? JSON.parse(error.details) : {};
+    if (error.message.startsWith('MATERIAL_NO_ENCONTRADO')) {
+      throw new MaterialNoEncontradoError(detail.materialId ?? input.materialId);
+    }
+    if (error.message.startsWith('STOCK_INSUFICIENTE')) {
+      throw new StockInsuficienteError(detail.materialId, detail.disponible, detail.solicitado);
+    }
+    if (error.message.startsWith('CANTIDAD_INVALIDA')) {
+      throw new RangeError(`La cantidad debe ser mayor a 0. Recibido: ${input.cantidad}`);
+    }
+    throw new Error(error.message);
+  }
+
+  return data as string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,38 +114,36 @@ export function convertirCantidadDesdeEquivalencia(
 // obtenerAlertasStockBajo
 //
 // Retorna todos los materiales cuya cantidadDisponible < cantidadMinima.
-// Lee /stock (query) y luego /materiales para obtener nombre/codigo.
 //
-// Estrategia: dos queries paralelas por batch de 10 (límite where-in Firestore).
+// Un solo round trip: `stock` con `materiales` embebido (join vía FK), en vez del
+// escaneo completo + batch de 10 en 10 que requería Firestore. El filtro
+// disponible < mínima se aplica en memoria porque PostgREST no expresa
+// comparaciones columna-contra-columna del mismo row en su sintaxis de filtros.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function obtenerAlertasStockBajo(): Promise<AlertaStockBajo[]> {
-  // 1. Obtener todos los documentos de stock
-  const stockSnap = await adminDb.collection('stock').get();
+  const { data, error } = await supabaseAdmin
+    .from('stock')
+    .select('*, materiales(*)');
+  if (error) throw error;
 
-  // 2. Filtrar los que están bajo mínimo
-  const stocksBajos = stockSnap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as Omit<Stock, 'materialId'>) }))
-    .filter((s) => s.cantidadDisponible < s.cantidadMinima);
+  const alertas: AlertaStockBajo[] = [];
+  for (const row of data ?? []) {
+    const cantidadDisponible = Number(row.cantidad_disponible);
+    const cantidadMinima = Number(row.cantidad_minima);
+    if (cantidadDisponible >= cantidadMinima) continue;
 
-  if (stocksBajos.length === 0) return [];
+    alertas.push({
+      material: row.materiales ? mapMaterialRow(row.materiales) : null,
+      materialId: row.material_id,
+      cantidadDisponible,
+      cantidadMinima,
+      diferencia: new Decimal(cantidadMinima).minus(cantidadDisponible).toNumber(),
+      ubicacion: row.ubicacion,
+    });
+  }
 
-  // 3. Obtener los materiales correspondientes (en batches de 10 — límite whereIn)
-  const materialIds = stocksBajos.map((s) => s.id);
-  const materiales  = await fetchMaterialesByIds(materialIds);
-  const materialesMap = new Map(materiales.map((m) => [m.id, m]));
-
-  // 4. Construir alertas
-  return stocksBajos.map((s) => ({
-    material: materialesMap.get(s.id) ?? null,
-    materialId: s.id,
-    cantidadDisponible: s.cantidadDisponible,
-    cantidadMinima: s.cantidadMinima,
-    diferencia: new Decimal(s.cantidadMinima)
-      .minus(s.cantidadDisponible)
-      .toNumber(),
-    ubicacion: s.ubicacion,
-  }));
+  return alertas;
 }
 
 export interface AlertaStockBajo {
@@ -227,27 +154,4 @@ export interface AlertaStockBajo {
   /** Cuántas unidades faltan para alcanzar el mínimo */
   diferencia: number;
   ubicacion: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilidades internas
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Fetch materiales por IDs en batches de 10 (restricción whereIn Firestore).
- */
-async function fetchMaterialesByIds(ids: string[]): Promise<Material[]> {
-  const results: Material[] = [];
-  const BATCH_SIZE = 10;
-
-  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
-    const batch = ids.slice(i, i + BATCH_SIZE);
-    const snap = await adminDb
-      .collection('materiales')
-      .where('__name__', 'in', batch)
-      .get();
-    snap.docs.forEach((d) => results.push({ id: d.id, ...d.data() } as Material));
-  }
-
-  return results;
 }

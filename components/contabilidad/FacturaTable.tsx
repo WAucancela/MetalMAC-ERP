@@ -135,13 +135,7 @@ export default function FacturaTable({ proveedorId }: FacturaTableProps) {
                   <td className="px-4 py-3 font-mono text-xs">{f.numeroFactura}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {f.fechaEmision
-                      ? format(
-                          typeof (f.fechaEmision as { seconds?: number }).seconds === 'number'
-                            ? new Date((f.fechaEmision as { seconds: number }).seconds * 1000)
-                            : new Date(f.fechaEmision as unknown as string),
-                          'dd MMM yyyy',
-                          { locale: es },
-                        )
+                      ? format(new Date(f.fechaEmision), 'dd MMM yyyy', { locale: es })
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">${f.subtotalSinIva.toFixed(2)}</td>

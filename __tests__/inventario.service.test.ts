@@ -1,45 +1,35 @@
 /**
  * __tests__/inventario.service.test.ts
  *
- * Tests unitarios para inventario.service.ts
- * Usa Jest + ts-jest con mocks manuales del Firebase Admin SDK.
+ * Tests unitarios para inventario.service.ts.
+ * Mockea `supabaseAdmin` (RPC + queries) en vez del proxy de transacción de
+ * Firestore que usaba la versión anterior. La lógica de ramas por `tipo`
+ * (SALIDA reduce, RESERVA mueve disponible→reservada, etc.) ahora vive en la
+ * función plpgsql `registrar_movimiento_inventario` — se verificó manualmente
+ * contra una instancia real de Postgres durante la Fase 1 de la migración
+ * (ver supabase/migrations/*_rpc_bom_stock.sql). Estos tests cubren lo que
+ * queda en la capa TS: los parámetros que se envían al RPC, el mapeo de
+ * errores de Postgres a las clases de dominio, y la lógica de
+ * `obtenerAlertasStockBajo` (que sigue filtrando en memoria).
  *
  * Ejecutar: npx jest --no-coverage
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mocks — deben declararse ANTES de los imports del módulo bajo prueba.
-// jest.mock() es elevado (hoisted) por ts-jest al inicio del archivo.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const mockTransactionGet    = jest.fn();
-const mockTransactionSet    = jest.fn();
-const mockTransactionUpdate = jest.fn();
-const mockRunTransaction    = jest.fn();
-const mockGetDocs           = jest.fn();
-const mockServerTimestamp   = jest.fn(() => ({ _type: 'serverTimestamp' }));
+const mockRpc = jest.fn();
+const mockSelect = jest.fn();
 
-/** collectionRef falso: soporta .doc(id), .get() y .where(...).get() */
-function makeCollectionRef(name: string) {
-  return {
-    doc: jest.fn((id?: string) => ({ id: id ?? 'auto-id', path: `${name}/${id ?? 'auto-id'}` })),
-    get: jest.fn(() => mockGetDocs()),
-    where: jest.fn(() => ({
-      get: jest.fn(() => mockGetDocs()),
-    })),
-  };
-}
-
-const adminDbMock = {
-  collection: jest.fn((name: string) => makeCollectionRef(name)),
-  runTransaction: jest.fn((fn: (t: unknown) => Promise<unknown>) => mockRunTransaction(fn)),
-};
-
-jest.mock('firebase-admin/firestore', () => ({
-  FieldValue: { serverTimestamp: () => mockServerTimestamp() },
+jest.mock('@/lib/supabase/admin', () => ({
+  supabaseAdmin: {
+    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => ({
+      select: (...args: unknown[]) => mockSelect(table, ...args),
+    }),
+  },
 }));
-
-jest.mock('../lib/firebase-admin', () => ({ adminDb: adminDbMock }));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Imports del código bajo prueba (DESPUÉS de los mocks)
@@ -59,29 +49,6 @@ import {
 
 import type { MovimientoInput } from '../types/metalmac.types';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers de test
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Datos de stock sin Timestamp (Firestore mockeado → no existe Timestamp.now()) */
-function makeStockData(overrides: Partial<{
-  cantidadDisponible: number;
-  cantidadReservada: number;
-  cantidadMinima: number;
-  cantidadMaxima: number | null;
-  ubicacion: string;
-}> = {}) {
-  return {
-    cantidadDisponible: 100,
-    cantidadReservada:  0,
-    cantidadMinima:     10,
-    cantidadMaxima:     null,
-    ubicacion:          'Bodega A',
-    actualizadoEn:      { seconds: 0, nanoseconds: 0 }, // stub, no se valida en tests
-    ...overrides,
-  };
-}
-
 function makeMovimientoInput(overrides: Partial<MovimientoInput> = {}): MovimientoInput {
   return {
     materialId:       'mat-001',
@@ -97,28 +64,8 @@ function makeMovimientoInput(overrides: Partial<MovimientoInput> = {}): Movimien
   };
 }
 
-/**
- * Configura mockRunTransaction para simular la ejecución de la función interna
- * con un transaction proxy que delega a los mocks individuales.
- */
-function setupTransaction(stockData: ReturnType<typeof makeStockData>, exists = true) {
-  mockRunTransaction.mockImplementationOnce(
-    async (fn: (t: Record<string, jest.Mock>) => Promise<unknown>) => {
-      const transaction = {
-        get:    mockTransactionGet.mockResolvedValueOnce({
-          exists,
-          data:   () => stockData,
-        }),
-        set:    mockTransactionSet,
-        update: mockTransactionUpdate,
-      };
-      return fn(transaction);
-    },
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Suite: convertirCantidad
+// Suite: convertirCantidad (pura, sin cambios)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('convertirCantidad', () => {
@@ -177,162 +124,104 @@ describe('convertirCantidadDesdeEquivalencia', () => {
 describe('registrarMovimiento', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  describe('ENTRADA', () => {
-    it('incrementa cantidadDisponible y crea movimiento', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 50 }));
+  it('llama al RPC registrar_movimiento_inventario con los parámetros correctos', async () => {
+    mockRpc.mockResolvedValueOnce({ data: 'mov-123', error: null });
 
-      const id = await registrarMovimiento(
-        makeMovimientoInput({ tipo: 'ENTRADA', cantidad: 10 }),
-      );
+    const id = await registrarMovimiento(
+      makeMovimientoInput({ tipo: 'ENTRADA', cantidad: 10, materialId: 'mat-abc' }),
+    );
 
-      expect(typeof id).toBe('string');
-      expect(mockTransactionUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ cantidadDisponible: 60 }),
-      );
-      expect(mockTransactionSet).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          tipo:          'ENTRADA',
-          stockAnterior:  50,
-          stockPosterior: 60,
-          cantidad:       10,
-        }),
-      );
+    expect(id).toBe('mov-123');
+    expect(mockRpc).toHaveBeenCalledWith('registrar_movimiento_inventario', {
+      p_material_id: 'mat-abc',
+      p_tipo: 'ENTRADA',
+      p_cantidad: 10,
+      p_costo_unitario: 126.50,
+      p_documento_tipo: 'FACTURA_COMPRA',
+      p_documento_id: 'fc-001',
+      p_numero_referencia: 'REF-001',
+      p_notas: 'Test',
+      p_usuario_id: 'user-001',
     });
   });
 
-  describe('SALIDA', () => {
-    it('reduce cantidadDisponible cuando hay stock suficiente', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 50 }));
+  it('pasa null como documento_id cuando no se provee', async () => {
+    mockRpc.mockResolvedValueOnce({ data: 'mov-124', error: null });
 
-      await registrarMovimiento(makeMovimientoInput({ tipo: 'SALIDA', cantidad: 20 }));
+    const input = makeMovimientoInput({ tipo: 'ENTRADA' });
+    delete (input as Partial<MovimientoInput>).documentoId;
 
-      expect(mockTransactionUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ cantidadDisponible: 30 }),
-      );
-    });
+    await registrarMovimiento(input);
 
-    it('lanza StockInsuficienteError cuando no hay stock suficiente', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 5 }));
-
-      await expect(
-        registrarMovimiento(makeMovimientoInput({ tipo: 'SALIDA', cantidad: 10 })),
-      ).rejects.toThrow(StockInsuficienteError);
-    });
-
-    it('StockInsuficienteError expone materialId, disponible y solicitado', async () => {
-      expect.assertions(4);
-      setupTransaction(makeStockData({ cantidadDisponible: 3 }));
-
-      try {
-        await registrarMovimiento(
-          makeMovimientoInput({ materialId: 'mat-abc', tipo: 'SALIDA', cantidad: 10 }),
-        );
-      } catch (e) {
-        expect(e).toBeInstanceOf(StockInsuficienteError);
-        const err = e as StockInsuficienteError;
-        expect(err.materialId).toBe('mat-abc');
-        expect(err.disponible).toBe(3);
-        expect(err.solicitado).toBe(10);
-      }
-    });
+    expect(mockRpc).toHaveBeenCalledWith(
+      'registrar_movimiento_inventario',
+      expect.objectContaining({ p_documento_id: null }),
+    );
   });
 
-  describe('RESERVA', () => {
-    it('mueve cantidad de disponible a reservada', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 100, cantidadReservada: 0 }));
-
-      await registrarMovimiento(makeMovimientoInput({ tipo: 'RESERVA', cantidad: 30 }));
-
-      expect(mockTransactionUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cantidadDisponible: 70,
-          cantidadReservada:  30,
-        }),
-      );
+  it('lanza StockInsuficienteError cuando el RPC reporta STOCK_INSUFICIENTE', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'STOCK_INSUFICIENTE',
+        details: JSON.stringify({ materialId: 'mat-abc', disponible: 3, solicitado: 10 }),
+      },
     });
 
-    it('lanza StockInsuficienteError si disponible < cantidad reserva', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 5, cantidadReservada: 10 }));
-
-      await expect(
-        registrarMovimiento(makeMovimientoInput({ tipo: 'RESERVA', cantidad: 10 })),
-      ).rejects.toThrow(StockInsuficienteError);
-    });
+    await expect(
+      registrarMovimiento(makeMovimientoInput({ materialId: 'mat-abc', tipo: 'SALIDA', cantidad: 10 })),
+    ).rejects.toThrow(StockInsuficienteError);
   });
 
-  describe('LIBERACION', () => {
-    it('mueve cantidad de reservada a disponible', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 20, cantidadReservada: 30 }));
-
-      await registrarMovimiento(makeMovimientoInput({ tipo: 'LIBERACION', cantidad: 30 }));
-
-      expect(mockTransactionUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cantidadDisponible: 50,
-          cantidadReservada:  0,
-        }),
-      );
+  it('StockInsuficienteError expone materialId, disponible y solicitado', async () => {
+    expect.assertions(4);
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'STOCK_INSUFICIENTE',
+        details: JSON.stringify({ materialId: 'mat-abc', disponible: 3, solicitado: 10 }),
+      },
     });
 
-    it('libera como máximo lo que hay en reservada (no genera negativo)', async () => {
-      // Pide liberar 50 pero solo hay 20 en reservada → libera 20
-      setupTransaction(makeStockData({ cantidadDisponible: 10, cantidadReservada: 20 }));
-
-      await registrarMovimiento(makeMovimientoInput({ tipo: 'LIBERACION', cantidad: 50 }));
-
-      expect(mockTransactionUpdate).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          cantidadDisponible: 30,
-          cantidadReservada:  0,
-        }),
+    try {
+      await registrarMovimiento(
+        makeMovimientoInput({ materialId: 'mat-abc', tipo: 'SALIDA', cantidad: 10 }),
       );
-    });
+    } catch (e) {
+      expect(e).toBeInstanceOf(StockInsuficienteError);
+      const err = e as StockInsuficienteError;
+      expect(err.materialId).toBe('mat-abc');
+      expect(err.disponible).toBe(3);
+      expect(err.solicitado).toBe(10);
+    }
   });
 
-  describe('Errores de validación', () => {
-    it('lanza MaterialNoEncontradoError cuando stock no existe', async () => {
-      setupTransaction(makeStockData(), /* exists= */ false);
-
-      await expect(
-        registrarMovimiento(makeMovimientoInput()),
-      ).rejects.toThrow(MaterialNoEncontradoError);
+  it('lanza MaterialNoEncontradoError cuando el RPC reporta MATERIAL_NO_ENCONTRADO', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'MATERIAL_NO_ENCONTRADO',
+        details: JSON.stringify({ materialId: 'mat-fantasma' }),
+      },
     });
 
-    it('lanza RangeError si cantidad = 0', async () => {
-      setupTransaction(makeStockData());
+    await expect(
+      registrarMovimiento(makeMovimientoInput({ materialId: 'mat-fantasma' })),
+    ).rejects.toThrow(MaterialNoEncontradoError);
+  });
 
-      await expect(
-        registrarMovimiento(makeMovimientoInput({ cantidad: 0 })),
-      ).rejects.toThrow(RangeError);
-    });
+  it('lanza RangeError si cantidad = 0 sin llamar al RPC', async () => {
+    await expect(
+      registrarMovimiento(makeMovimientoInput({ cantidad: 0 })),
+    ).rejects.toThrow(RangeError);
+    expect(mockRpc).not.toHaveBeenCalled();
+  });
 
-    it('lanza RangeError si cantidad < 0', async () => {
-      setupTransaction(makeStockData());
-
-      await expect(
-        registrarMovimiento(makeMovimientoInput({ cantidad: -5 })),
-      ).rejects.toThrow(RangeError);
-    });
-
-    it('guarda documentoId como null cuando no se provee', async () => {
-      setupTransaction(makeStockData({ cantidadDisponible: 100 }));
-
-      const input = makeMovimientoInput({ tipo: 'ENTRADA' });
-      delete (input as Partial<MovimientoInput>).documentoId;
-
-      await registrarMovimiento(input);
-
-      expect(mockTransactionSet).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ documentoId: null }),
-      );
-    });
+  it('lanza RangeError si cantidad < 0 sin llamar al RPC', async () => {
+    await expect(
+      registrarMovimiento(makeMovimientoInput({ cantidad: -5 })),
+    ).rejects.toThrow(RangeError);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 
@@ -343,45 +232,58 @@ describe('registrarMovimiento', () => {
 describe('obtenerAlertasStockBajo', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  function makeStockRow(overrides: Record<string, unknown> = {}) {
+    return {
+      material_id: 'mat-001',
+      cantidad_disponible: 50,
+      cantidad_reservada: 0,
+      cantidad_minima: 10,
+      cantidad_maxima: null,
+      ubicacion: 'Bodega A',
+      actualizado_en: '2026-01-01T00:00:00Z',
+      materiales: null,
+      ...overrides,
+    };
+  }
+
   it('retorna arreglo vacío cuando ningún material está bajo mínimo', async () => {
-    mockGetDocs.mockResolvedValueOnce({
-      docs: [
-        {
-          id:   'mat-001',
-          data: () => makeStockData({ cantidadDisponible: 50, cantidadMinima: 10 }),
-        },
-      ],
+    mockSelect.mockResolvedValueOnce({
+      data: [makeStockRow({ cantidad_disponible: 50, cantidad_minima: 10 })],
+      error: null,
     });
 
     const alertas = await obtenerAlertasStockBajo();
     expect(alertas).toHaveLength(0);
-    // Solo debe llamarse UNA vez (no hay bajo-mínimo → no busca materiales)
-    expect(mockGetDocs).toHaveBeenCalledTimes(1);
+    expect(mockSelect).toHaveBeenCalledWith('stock', '*, materiales(*)');
   });
 
   it('retorna alerta con datos correctos para material bajo mínimo', async () => {
-    mockGetDocs
-      // 1ª llamada → colección /stock
-      .mockResolvedValueOnce({
-        docs: [
-          { id: 'mat-001', data: () => makeStockData({ cantidadDisponible: 3, cantidadMinima: 10 }) },
-          { id: 'mat-002', data: () => makeStockData({ cantidadDisponible: 50, cantidadMinima: 10 }) },
-        ],
-      })
-      // 2ª llamada → query /materiales
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            id:   'mat-001',
-            data: () => ({
-              codigoInterno: 'ACX-001',
-              nombre:        'Plancha AISI 304',
-              tipo:          'PLANCHA',
-              activo:        true,
-            }),
+    mockSelect.mockResolvedValueOnce({
+      data: [
+        makeStockRow({
+          material_id: 'mat-001',
+          cantidad_disponible: 3,
+          cantidad_minima: 10,
+          materiales: {
+            id: 'mat-001',
+            codigo_interno: 'ACX-001',
+            nombre: 'Plancha AISI 304',
+            descripcion: '',
+            tipo: 'PLANCHA',
+            categoria_id: 'cat-1',
+            grado: '',
+            unidad_base_id: 'u-1',
+            costo_unitario: 15.5,
+            especificaciones: {},
+            activo: true,
+            creado_en: '2026-01-01T00:00:00Z',
+            modificado_en: '2026-01-01T00:00:00Z',
           },
-        ],
-      });
+        }),
+        makeStockRow({ material_id: 'mat-002', cantidad_disponible: 50, cantidad_minima: 10 }),
+      ],
+      error: null,
+    });
 
     const alertas = await obtenerAlertasStockBajo();
 
@@ -393,31 +295,29 @@ describe('obtenerAlertasStockBajo', () => {
     expect(alertas[0].material?.codigoInterno).toBe('ACX-001');
   });
 
-  it('incluye alerta con material=null si no existe en /materiales', async () => {
-    mockGetDocs
-      .mockResolvedValueOnce({
-        docs: [
-          { id: 'mat-ghost', data: () => makeStockData({ cantidadDisponible: 0, cantidadMinima: 5 }) },
-        ],
-      })
-      .mockResolvedValueOnce({ docs: [] }); // no encontrado
+  it('incluye alerta con material=null si el join no trae materiales', () => {
+    return (async () => {
+      mockSelect.mockResolvedValueOnce({
+        data: [makeStockRow({ material_id: 'mat-ghost', cantidad_disponible: 0, cantidad_minima: 5, materiales: null })],
+        error: null,
+      });
 
-    const alertas = await obtenerAlertasStockBajo();
-    expect(alertas).toHaveLength(1);
-    expect(alertas[0].material).toBeNull();
-    expect(alertas[0].diferencia).toBe(5);
+      const alertas = await obtenerAlertasStockBajo();
+      expect(alertas).toHaveLength(1);
+      expect(alertas[0].material).toBeNull();
+      expect(alertas[0].diferencia).toBe(5);
+    })();
   });
 
   it('calcula diferencia correctamente para múltiples alertas simultáneas', async () => {
-    mockGetDocs
-      .mockResolvedValueOnce({
-        docs: [
-          { id: 'A', data: () => makeStockData({ cantidadDisponible: 1,  cantidadMinima: 10 }) },
-          { id: 'B', data: () => makeStockData({ cantidadDisponible: 8,  cantidadMinima: 15 }) },
-          { id: 'C', data: () => makeStockData({ cantidadDisponible: 20, cantidadMinima: 10 }) }, // OK
-        ],
-      })
-      .mockResolvedValueOnce({ docs: [] });
+    mockSelect.mockResolvedValueOnce({
+      data: [
+        makeStockRow({ material_id: 'A', cantidad_disponible: 1,  cantidad_minima: 10 }),
+        makeStockRow({ material_id: 'B', cantidad_disponible: 8,  cantidad_minima: 15 }),
+        makeStockRow({ material_id: 'C', cantidad_disponible: 20, cantidad_minima: 10 }), // OK
+      ],
+      error: null,
+    });
 
     const alertas = await obtenerAlertasStockBajo();
 

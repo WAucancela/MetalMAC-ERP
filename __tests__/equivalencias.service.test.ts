@@ -2,13 +2,13 @@
  * __tests__/equivalencias.service.test.ts
  *
  * Tests unitarios para las funciones puras de equivalencias.service.ts.
- * No requieren Firestore — resolverLineaContra y construirEquivalencia no hacen IO.
+ * No requieren IO — resolverLineaContra y construirEquivalencia no tocan la DB.
  *
- * lib/firebase-admin.ts inicializa el Admin SDK al importarse (lanza si faltan
+ * lib/supabase/admin.ts inicializa el cliente al importarse (lanza si faltan
  * las variables de entorno), así que se mockea antes de importar el servicio.
  */
 
-jest.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
+jest.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: {} }));
 
 import {
   resolverLineaContra,

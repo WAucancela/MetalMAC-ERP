@@ -2,31 +2,28 @@
  * bom.service.ts — Lógica de BOM (Bill of Materials) y Órdenes de Producción
  *
  * Reglas críticas:
- * - TODA aritmética usa decimal.js (nunca Number para costos o cantidades)
+ * - TODA aritmética pura usa decimal.js (nunca Number para costos o cantidades)
  * - cantidadConMerma = cantidadBase * factorMerma (aplicado por línea, no globalmente)
- * - reservarMaterialesBOM usa runTransaction — nunca actualiza stock fuera de transacción
- * - generarCodigoOP usa un counter en Firestore dentro de transacción para garantizar secuencialidad
+ * - reservar/liberar/consumir materiales corren como funciones plpgsql (`SELECT ... FOR
+ *   UPDATE`) invocadas vía `supabaseAdmin.rpc()` — la atomicidad la garantiza Postgres,
+ *   no este archivo (ver supabase/migrations/*_rpc_bom_stock.sql).
  * - Al COMPLETAR una OP: RESERVA → SALIDA (consume), libera lo no consumido
  * - Al CANCELAR una OP: RESERVA → LIBERACION (devuelve al disponible)
  *
- * Usa Admin SDK (server-only) — llamado exclusivamente desde API Routes.
- * Las reglas de Firestore exigen `isAuth()` para leer y `allow write: if false`
- * en /stock y /movimientos_inventario, así que estas escrituras SOLO pueden
- * hacerse con el Admin SDK (que ignora las reglas de seguridad).
+ * Usa el cliente service_role (server-only) — llamado exclusivamente desde API Routes.
  */
 
-import { FieldValue, DocumentReference } from 'firebase-admin/firestore';
 import Decimal from 'decimal.js';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type {
   BOM,
   LineaBOM,
   OperacionBOM,
   Material,
   Stock,
-  OrdenProduccion,
   MaterialReservado,
 } from '@/types/metalmac.types';
+import { mapMaterialRow, mapStockRow } from '@/lib/services/mappers';
 
 // ─────────────────────────────────────────────
 // Errores de dominio
@@ -50,6 +47,23 @@ export class StockInsuficienteParaOPError extends Error {
     );
     this.name = 'StockInsuficienteParaOPError';
   }
+}
+
+/** Traduce un error de una función RPC de Postgres a las clases de error de dominio. */
+function throwBomRpcError(error: { message: string; details?: string | null }): never {
+  const detail = error.details ? JSON.parse(error.details) : {};
+  if (error.message.startsWith('MATERIAL_NO_ENCONTRADO')) {
+    // Mismo tratamiento que la versión Firestore: un material sin fila de stock se
+    // reporta como stock insuficiente (0 disponible), no como un error aparte.
+    throw new StockInsuficienteParaOPError(detail.materialId ?? '', 0, 0);
+  }
+  if (error.message.startsWith('STOCK_INSUFICIENTE_OP')) {
+    throw new StockInsuficienteParaOPError(detail.materialId, detail.requerido, detail.disponible);
+  }
+  if (error.message.startsWith('BOM_NO_ENCONTRADO')) {
+    throw new BOMNoEncontradoError(detail.productoId ?? '');
+  }
+  throw new Error(error.message);
 }
 
 // ─────────────────────────────────────────────
@@ -214,54 +228,86 @@ export function validarDisponibilidadBOM(
 }
 
 // ─────────────────────────────────────────────
-// Funciones con IO (Firestore Admin SDK)
+// Funciones con IO (Postgres vía supabaseAdmin)
 // Solo se llaman desde bom.service internamente o desde API Routes.
 // ─────────────────────────────────────────────
 
-/** Carga el BOM de un producto desde Firestore. */
+/** Carga el BOM de un producto (boms + bom_lineas + bom_operaciones en un solo round trip). */
 export async function cargarBOM(productoId: string): Promise<BOM> {
-  const snap = await adminDb.collection('bom').doc(productoId).get();
-  if (!snap.exists) throw new BOMNoEncontradoError(productoId);
-  return { productoId, ...snap.data() } as BOM;
+  const { data, error } = await supabaseAdmin
+    .from('boms')
+    .select('producto_id, version, costo_materiales, costo_operaciones, costo_total, actualizado_en, bom_lineas(*), bom_operaciones(*)')
+    .eq('producto_id', productoId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new BOMNoEncontradoError(productoId);
+
+  const lineas: LineaBOM[] = [...data.bom_lineas]
+    .sort((a, b) => a.orden - b.orden)
+    .map((l) => ({
+      materialId: l.material_id,
+      cantidadBase: Number(l.cantidad_base),
+      factorMerma: Number(l.factor_merma),
+      cantidadConMerma: Number(l.cantidad_con_merma),
+      unidadId: l.unidad_id,
+      notas: l.notas,
+    }));
+
+  const operaciones: OperacionBOM[] = [...data.bom_operaciones]
+    .sort((a, b) => a.orden - b.orden)
+    .map((o) => ({
+      tipo: o.tipo,
+      minutos: Number(o.minutos),
+      costoPorMinuto: Number(o.costo_por_minuto),
+      costoTotal: Number(o.costo_total),
+    }));
+
+  return {
+    productoId: data.producto_id,
+    version: data.version,
+    lineas,
+    operaciones,
+    costoMateriales: Number(data.costo_materiales),
+    costoOperaciones: Number(data.costo_operaciones),
+    costoTotal: Number(data.costo_total),
+    actualizadoEn: data.actualizado_en,
+  };
 }
 
-/** Carga los stocks de todos los materiales del BOM en una sola operación paralela. */
+/** Carga los stocks de todos los materiales del BOM en un solo round trip. */
 export async function cargarStocksBOM(
   lineas: LineaBOM[],
 ): Promise<Record<string, Stock>> {
   const materialIds = [...new Set(lineas.map((l) => l.materialId))];
+  if (materialIds.length === 0) return {};
+
+  const { data, error } = await supabaseAdmin
+    .from('stock')
+    .select('*')
+    .in('material_id', materialIds);
+  if (error) throw error;
+
   const stockPorId: Record<string, Stock> = {};
-
-  await Promise.all(
-    materialIds.map(async (id) => {
-      const snap = await adminDb.collection('stock').doc(id).get();
-      if (snap.exists) {
-        stockPorId[id] = { materialId: id, ...snap.data() } as Stock;
-      }
-    }),
-  );
-
+  for (const row of data ?? []) stockPorId[row.material_id] = mapStockRow(row);
   return stockPorId;
 }
 
-/** Carga los materiales del BOM (para costos). Firestore whereIn ≤ 10 — batch interno. */
+/** Carga los materiales del BOM (para costos). Un solo round trip — sin el límite de 10 de Firestore. */
 export async function cargarMaterialesBOM(
   lineas: LineaBOM[],
 ): Promise<Record<string, Material>> {
   const materialIds = [...new Set(lineas.map((l) => l.materialId))];
+  if (materialIds.length === 0) return {};
+
+  const { data, error } = await supabaseAdmin
+    .from('materiales')
+    .select('*')
+    .in('id', materialIds);
+  if (error) throw error;
+
   const result: Record<string, Material> = {};
-
-  // Lotes de 10 por límite de whereIn en Firestore
-  const BATCH = 10;
-  for (let i = 0; i < materialIds.length; i += BATCH) {
-    const batch = materialIds.slice(i, i + BATCH);
-    const snap = await adminDb
-      .collection('materiales')
-      .where('__name__', 'in', batch)
-      .get();
-    snap.docs.forEach((d) => { result[d.id] = { id: d.id, ...d.data() } as Material; });
-  }
-
+  for (const row of data ?? []) result[row.id] = mapMaterialRow(row);
   return result;
 }
 
@@ -283,207 +329,60 @@ export async function calcularCostoProducto(
 }
 
 // ─────────────────────────────────────────────
-// reservarMaterialesBOM (IO — Firestore Transaction)
+// reservarMaterialesBOM (IO — RPC `reservar_materiales_bom`)
 // ─────────────────────────────────────────────
 
 /**
- * Dentro de una transacción Firestore:
- * 1. Verifica disponibilidad de cada material
- * 2. Reduce cantidadDisponible y sube cantidadReservada (tipo RESERVA)
- * 3. Crea un movimiento_inventario por cada material
- *
- * Lanza StockInsuficienteParaOPError en el primer material con stock insuficiente.
- * Al lanzar, la transacción se aborta y no se modifica nada en Firestore.
+ * Reserva los materiales del BOM de `productoId` para una OP, vía la función
+ * plpgsql `reservar_materiales_bom` (row-locking real con `SELECT ... FOR UPDATE`).
+ * Todo-o-nada: si cualquier material tiene stock insuficiente, la función revierte
+ * todo lo hecho en esa invocación (no se modifica nada en la base).
  */
 export async function reservarMaterialesBOM(
-  bom: BOM,
+  productoId: string,
   unidades: number,
   ordenId: string,
   usuarioId: string,
 ): Promise<MaterialReservado[]> {
-  const materialesReservados: MaterialReservado[] = [];
-
-  await adminDb.runTransaction(async (transaction) => {
-    // 1. Leer todos los stocks dentro de la transacción
-    const stockRefs = bom.lineas.map((l) => adminDb.collection('stock').doc(l.materialId));
-    const stockSnaps = await Promise.all(stockRefs.map((r) => transaction.get(r)));
-
-    const stockPorId: Record<string, { disponible: Decimal; reservada: Decimal; costoUnitario: number }> = {};
-
-    for (let i = 0; i < bom.lineas.length; i++) {
-      const linea = bom.lineas[i];
-      const snap = stockSnaps[i];
-
-      if (!snap.exists) {
-        throw new StockInsuficienteParaOPError(linea.materialId, 0, 0);
-      }
-
-      const data = snap.data()!;
-      stockPorId[linea.materialId] = {
-        disponible: new Decimal(data.cantidadDisponible),
-        reservada: new Decimal(data.cantidadReservada),
-        costoUnitario: data.costoUnitario ?? 0,
-      };
-    }
-
-    // 2. Verificar disponibilidad y preparar escrituras
-    const escrituras: Array<{ stockRef: DocumentReference; nuevaDisponible: Decimal; nuevaReservada: Decimal; cantidad: number; costoUnitario: number; materialId: string }> = [];
-
-    for (const linea of bom.lineas) {
-      const requerido = calcularCantidadConMerma(
-        linea.cantidadBase,
-        linea.factorMerma,
-        unidades,
-      );
-      const { disponible, reservada, costoUnitario } = stockPorId[linea.materialId];
-
-      if (new Decimal(requerido).greaterThan(disponible)) {
-        throw new StockInsuficienteParaOPError(
-          linea.materialId,
-          requerido,
-          disponible.toNumber(),
-        );
-      }
-
-      escrituras.push({
-        materialId: linea.materialId,
-        stockRef: adminDb.collection('stock').doc(linea.materialId),
-        nuevaDisponible: disponible.minus(requerido),
-        nuevaReservada: reservada.plus(requerido),
-        cantidad: requerido,
-        costoUnitario,
-      });
-    }
-
-    // 3. Escribir stock + movimientos
-    for (const e of escrituras) {
-      const movRef = adminDb.collection('movimientos_inventario').doc();
-
-      transaction.update(e.stockRef, {
-        cantidadDisponible: e.nuevaDisponible.toNumber(),
-        cantidadReservada: e.nuevaReservada.toNumber(),
-        actualizadoEn: FieldValue.serverTimestamp(),
-      });
-
-      transaction.set(movRef, {
-        materialId: e.materialId,
-        tipo: 'RESERVA',
-        cantidad: e.cantidad,
-        stockAnterior: e.nuevaDisponible.plus(e.cantidad).toNumber(),
-        stockPosterior: e.nuevaDisponible.toNumber(),
-        costoUnitario: e.costoUnitario,
-        documentoTipo: 'ORDEN_PRODUCCION',
-        documentoId: ordenId,
-        numeroReferencia: ordenId,
-        notas: `Reserva para OP ${ordenId}`,
-        usuarioId,
-        fecha: FieldValue.serverTimestamp(),
-      });
-
-      materialesReservados.push({
-        materialId: e.materialId,
-        cantidadReservada: e.cantidad,
-        costoUnitarioAlMomento: e.costoUnitario,
-      });
-    }
+  const { data, error } = await supabaseAdmin.rpc('reservar_materiales_bom', {
+    p_orden_id: ordenId,
+    p_producto_id: productoId,
+    p_unidades: unidades,
+    p_usuario_id: usuarioId,
   });
+  if (error) throwBomRpcError(error);
 
-  return materialesReservados;
+  return (data as Array<{ materialId: string; cantidadReservada: number; costoUnitarioAlMomento: number }>);
 }
 
 // ─────────────────────────────────────────────
 // liberarMaterialesBOM (para CANCELAR una OP)
 // ─────────────────────────────────────────────
 
-/**
- * Libera la reserva de materiales cuando una OP se cancela.
- * Tipo LIBERACION: mueve cantidadReservada → cantidadDisponible.
- */
+/** Libera la reserva de materiales de una OP cuando se cancela (RPC `liberar_materiales_bom`). */
 export async function liberarMaterialesBOM(
-  materialesReservados: MaterialReservado[],
   ordenId: string,
   usuarioId: string,
 ): Promise<void> {
-  await adminDb.runTransaction(async (transaction) => {
-    for (const mr of materialesReservados) {
-      const stockRef = adminDb.collection('stock').doc(mr.materialId);
-      const snap = await transaction.get(stockRef);
-      if (!snap.exists) continue;
-
-      const data = snap.data()!;
-      const disponible = new Decimal(data.cantidadDisponible);
-      const reservada = new Decimal(data.cantidadReservada);
-      // Liberar lo que realmente está reservado (no más de lo reservado)
-      const aLiberar = Decimal.min(mr.cantidadReservada, reservada);
-
-      transaction.update(stockRef, {
-        cantidadDisponible: disponible.plus(aLiberar).toNumber(),
-        cantidadReservada: reservada.minus(aLiberar).toNumber(),
-        actualizadoEn: FieldValue.serverTimestamp(),
-      });
-
-      const movRef = adminDb.collection('movimientos_inventario').doc();
-      transaction.set(movRef, {
-        materialId: mr.materialId,
-        tipo: 'LIBERACION',
-        cantidad: aLiberar.toNumber(),
-        stockAnterior: disponible.toNumber(),
-        stockPosterior: disponible.plus(aLiberar).toNumber(),
-        costoUnitario: mr.costoUnitarioAlMomento,
-        documentoTipo: 'ORDEN_PRODUCCION',
-        documentoId: ordenId,
-        numeroReferencia: ordenId,
-        notas: `Liberación por cancelación de OP ${ordenId}`,
-        usuarioId,
-        fecha: FieldValue.serverTimestamp(),
-      });
-    }
+  const { error } = await supabaseAdmin.rpc('liberar_materiales_bom', {
+    p_orden_id: ordenId,
+    p_usuario_id: usuarioId,
   });
+  if (error) throwBomRpcError(error);
 }
 
 // ─────────────────────────────────────────────
 // consumirMaterialesBOM (para COMPLETAR una OP)
 // ─────────────────────────────────────────────
 
-/**
- * Al completar una OP: convierte RESERVA → SALIDA definitiva.
- * Reduce cantidadReservada (la reserva existente) y registra movimiento tipo SALIDA.
- */
+/** Convierte la reserva de una OP en consumo definitivo (RPC `consumir_materiales_bom`). */
 export async function consumirMaterialesBOM(
-  materialesReservados: MaterialReservado[],
   ordenId: string,
   usuarioId: string,
 ): Promise<void> {
-  await adminDb.runTransaction(async (transaction) => {
-    for (const mr of materialesReservados) {
-      const stockRef = adminDb.collection('stock').doc(mr.materialId);
-      const snap = await transaction.get(stockRef);
-      if (!snap.exists) continue;
-
-      const data = snap.data()!;
-      const reservada = new Decimal(data.cantidadReservada);
-      const aConsumir = Decimal.min(mr.cantidadReservada, reservada);
-
-      transaction.update(stockRef, {
-        cantidadReservada: reservada.minus(aConsumir).toNumber(),
-        actualizadoEn: FieldValue.serverTimestamp(),
-      });
-
-      const movRef = adminDb.collection('movimientos_inventario').doc();
-      transaction.set(movRef, {
-        materialId: mr.materialId,
-        tipo: 'SALIDA',
-        cantidad: aConsumir.toNumber(),
-        stockAnterior: new Decimal(data.cantidadDisponible).toNumber(),
-        stockPosterior: new Decimal(data.cantidadDisponible).toNumber(), // disponible ya se redujo en RESERVA
-        costoUnitario: mr.costoUnitarioAlMomento,
-        documentoTipo: 'ORDEN_PRODUCCION',
-        documentoId: ordenId,
-        numeroReferencia: ordenId,
-        notas: `Consumo al completar OP ${ordenId}`,
-        usuarioId,
-        fecha: FieldValue.serverTimestamp(),
-      });
-    }
+  const { error } = await supabaseAdmin.rpc('consumir_materiales_bom', {
+    p_orden_id: ordenId,
+    p_usuario_id: usuarioId,
   });
+  if (error) throwBomRpcError(error);
 }

@@ -2,19 +2,19 @@
  * __tests__/bom.service.test.ts
  *
  * Tests unitarios para las funciones puras de bom.service.ts.
- * No requieren Firestore — usan datos inline.
+ * No requieren IO — usan datos inline.
  *
  * Funciones cubiertas:
  * - calcularCantidadConMerma
  * - calcularCostoBOM
  * - validarDisponibilidadBOM
  *
- * bom.service.ts importa adminDb de lib/firebase-admin.ts, que inicializa el
- * Admin SDK al cargarse (lanza si faltan las variables de entorno) — se mockea
+ * bom.service.ts importa supabaseAdmin de lib/supabase/admin.ts, que inicializa
+ * el cliente al cargarse (lanza si faltan las variables de entorno) — se mockea
  * antes de importar el servicio aunque estos tests no hagan IO.
  */
 
-jest.mock('@/lib/firebase-admin', () => ({ adminDb: {} }));
+jest.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: {} }));
 
 import {
   calcularCantidadConMerma,

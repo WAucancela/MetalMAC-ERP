@@ -1,4 +1,6 @@
-import { Timestamp } from 'firebase/firestore';
+// Los campos de fecha/hora se representan como string ISO 8601 — así es como
+// Postgres (timestamptz/date) llega vía PostgREST/supabase-js, a diferencia del
+// objeto Timestamp de Firestore que se usaba antes.
 
 // ─────────────────────────────────────────────
 // Enums / Literal Union Types
@@ -120,8 +122,8 @@ export interface Material {
   costoUnitario: number;   // USD por unidad base
   especificaciones: EspecificacionesMaterial;
   activo: boolean;
-  creadoEn: Timestamp;
-  modificadoEn: Timestamp;
+  creadoEn: string;
+  modificadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -180,7 +182,7 @@ export interface Stock {
   cantidadMinima: number;
   cantidadMaxima: number | null;
   ubicacion: string;
-  actualizadoEn: Timestamp;
+  actualizadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -200,7 +202,7 @@ export interface MovimientoInventario {
   numeroReferencia: string;
   notas: string;
   usuarioId: string;
-  fecha: Timestamp;
+  fecha: string;
 }
 
 /** Payload de entrada para registrar un movimiento desde la API */
@@ -266,7 +268,7 @@ export interface FacturaCompra {
   proveedorId: string;
   claveAcceso: string;        // 49 dígitos SRI
   numeroFactura: string;      // 001-001-000000001
-  fechaEmision: Timestamp;
+  fechaEmision: string;
   subtotalSinIva: number;
   iva: number;                // 15% Ecuador
   total: number;
@@ -274,7 +276,7 @@ export interface FacturaCompra {
   estado: EstadoFacturaCompra;
   lineas: LineaFacturaCompra[];
   retenciones: Retencion[];
-  creadoEn: Timestamp;
+  creadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -295,13 +297,13 @@ export interface FacturaVenta {
   clienteRuc: string;
   claveAcceso: string;
   numeroFactura: string;
-  fechaEmision: Timestamp;
+  fechaEmision: string;
   subtotalSinIva: number;
   iva: number;
   total: number;
   estado: EstadoFacturaVenta;
   lineas: LineaFacturaVenta[];
-  creadoEn: Timestamp;
+  creadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -347,7 +349,7 @@ export interface BOM {
   costoMateriales: number;
   costoOperaciones: number;
   costoTotal: number;
-  actualizadoEn: Timestamp;
+  actualizadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -366,15 +368,15 @@ export interface OrdenProduccion {
   productoId: string;
   cantidad: number;
   estado: EstadoOrdenProduccion;
-  fechaInicio: Timestamp;
-  fechaEntrega: Timestamp;
+  fechaInicio: string;
+  fechaEntrega: string;
   costoEstimado: number;
   costoReal: number | null;
-  fechaCompletada: Timestamp | null;
+  fechaCompletada: string | null;
   proyectoId: string | null;
   notas: string;
   materialesReservados: MaterialReservado[];
-  creadoEn: Timestamp;
+  creadoEn: string;
 }
 
 // ─────────────────────────────────────────────
@@ -465,13 +467,13 @@ export interface Proyecto {
   costoEstimado: number;      // suma de OPs vinculadas al crear
   costoReal: number;          // suma de gastos registrados
   estado: EstadoProyecto;
-  fechaInicio: Timestamp;
-  fechaFin: Timestamp | null;
+  fechaInicio: string;
+  fechaFin: string | null;
   responsableId: string;      // usuarioId del responsable
   ordenesProduccion: string[]; // IDs de OPs vinculadas
-  creadoEn: Timestamp;
+  creadoEn: string;
   creadoPor: string;
-  actualizadoEn: Timestamp;
+  actualizadoEn: string;
   actualizadoPor: string;
 }
 
@@ -481,11 +483,11 @@ export interface GastoProyecto {
   categoria: CategoriaGasto;
   descripcion: string;
   monto: number;              // USD
-  fecha: Timestamp;
+  fecha: string;
   proveedorId: string | null;
   facturaId: string | null;   // referencia a facturas_compra
   ordenId: string | null;     // referencia a ordenes_produccion
   comprobante: string | null; // URL en Storage
-  creadoEn: Timestamp;
+  creadoEn: string;
   creadoPor: string;
 }

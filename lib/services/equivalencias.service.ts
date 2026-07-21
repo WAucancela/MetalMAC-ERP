@@ -7,12 +7,12 @@
  * 3. Coincidencia parcial por descripción (case-insensitive)
  * 4. No resuelta → materialId = null, resuelta = false
  *
- * Usa Admin SDK (server-only) — llamado exclusivamente desde API Routes.
+ * Usa el cliente service_role (server-only) — llamado exclusivamente desde API Routes.
  * decimal.js para conversión de cantidades (evita errores de punto flotante).
  */
 
 import Decimal from 'decimal.js';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { LineaXML, LineaResuelta, TablaEquivalencia } from '@/types/metalmac.types';
 
 // ─────────────────────────────────────────────
@@ -20,19 +20,30 @@ import type { LineaXML, LineaResuelta, TablaEquivalencia } from '@/types/metalma
 // ─────────────────────────────────────────────
 
 /**
- * Carga todas las equivalencias activas de un proveedor desde Firestore (Admin SDK).
+ * Carga todas las equivalencias activas de un proveedor.
  * Una sola query por llamada a resolverLineasFactura.
  */
 async function obtenerEquivalenciasProveedor(
   proveedorId: string,
 ): Promise<TablaEquivalencia[]> {
-  const snap = await adminDb
-    .collection('tabla_equivalencias')
-    .where('proveedorId', '==', proveedorId)
-    .where('activo', '==', true)
-    .get();
+  const { data, error } = await supabaseAdmin
+    .from('tabla_equivalencias')
+    .select('*')
+    .eq('proveedor_id', proveedorId)
+    .eq('activo', true);
+  if (error) throw error;
 
-  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as TablaEquivalencia));
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    proveedorId: row.proveedor_id,
+    codigoProveedor: row.codigo_proveedor,
+    descripcionProveedor: row.descripcion_proveedor,
+    materialId: row.material_id,
+    unidadProveedorId: row.unidad_proveedor_id,
+    factorConversion: Number(row.factor_conversion),
+    precioReferencia: Number(row.precio_referencia),
+    activo: row.activo,
+  }));
 }
 
 // ─────────────────────────────────────────────
