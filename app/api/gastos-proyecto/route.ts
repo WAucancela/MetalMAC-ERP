@@ -1,14 +1,16 @@
 /**
  * GET  /api/gastos-proyecto  — lista gastos con filtros
- * POST /api/gastos-proyecto  — registra gasto y actualiza costoReal del proyecto
+ * POST /api/gastos-proyecto  — registra gasto (el trigger sobre gastos_proyecto
+ *                              mantiene proyectos.costo_real automáticamente)
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import {
+  getAuthenticatedUser, canWrite, encodeCursor, decodeCursor, cursorFilterAntesDe,
+} from '@/app/api/_helpers';
 import { GastoSchema, GastosQuerySchema } from '@/lib/validations/proyectos.schema';
-import Decimal from 'decimal.js';
+import { mapGastoProyectoRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -18,26 +20,37 @@ export async function GET(request: Request) {
   const qp = GastosQuerySchema.safeParse(Object.fromEntries(searchParams));
   if (!qp.success) return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
 
-  const { proyectoId, categoria, desde, hasta, limit: pageLimit, startAfter: cursorId } = qp.data;
+  const { proyectoId, categoria, desde, hasta, limit: pageLimit, startAfter: cursor } = qp.data;
 
   try {
-    let q = adminDb.collection('gastos_proyecto').orderBy('fecha', 'desc') as Query;
-    if (proyectoId) q = q.where('proyectoId', '==', proyectoId);
-    if (categoria)  q = q.where('categoria',  '==', categoria);
-    if (desde)      q = q.where('fecha', '>=', Timestamp.fromDate(new Date(desde)));
-    if (hasta)      q = q.where('fecha', '<=', Timestamp.fromDate(new Date(hasta)));
+    let query = supabaseAdmin
+      .from('gastos_proyecto')
+      .select('*')
+      .order('fecha', { ascending: false })
+      .order('id', { ascending: false });
 
-    if (cursorId) {
-      const cursor = await adminDb.collection('gastos_proyecto').doc(cursorId).get();
-      if (cursor.exists) q = q.startAfter(cursor);
+    if (proyectoId) query = query.eq('proyecto_id', proyectoId);
+    if (categoria)  query = query.eq('categoria', categoria);
+    if (desde)      query = query.gte('fecha', desde);
+    if (hasta)      query = query.lte('fecha', hasta);
+
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      if (decoded) query = query.or(cursorFilterAntesDe('fecha', decoded));
     }
-    q = q.limit(pageLimit);
+    query = query.limit(pageLimit);
 
-    const snap = await q.get();
-    const gastos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const nextCursor = snap.docs.length === pageLimit ? snap.docs.at(-1)!.id : null;
+    const { data, error } = await query;
+    if (error) throw error;
 
-    return NextResponse.json({ ok: true, data: gastos, nextCursor });
+    const rows = data ?? [];
+    const last = rows.at(-1);
+    const nextCursor =
+      rows.length === pageLimit && last
+        ? encodeCursor({ valor: last.fecha, id: last.id })
+        : null;
+
+    return NextResponse.json({ ok: true, data: rows.map(mapGastoProyectoRow), nextCursor });
   } catch (e) {
     console.error('[GET /api/gastos-proyecto]', e);
     return NextResponse.json({ error: 'Error al obtener gastos' }, { status: 500 });
@@ -59,45 +72,37 @@ export async function POST(request: Request) {
 
   try {
     // Verificar que el proyecto existe
-    const proyectoRef = adminDb.collection('proyectos').doc(proyectoId);
-    const proyectoSnap = await proyectoRef.get();
-    if (!proyectoSnap.exists) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+    const { data: proyecto, error: proyectoError } = await supabaseAdmin
+      .from('proyectos')
+      .select('id')
+      .eq('id', proyectoId)
+      .maybeSingle();
+    if (proyectoError) throw proyectoError;
+    if (!proyecto) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
 
-    // Registrar gasto y actualizar costoReal en transacción
-    let gastoId: string;
-
-    await adminDb.runTransaction(async (tx) => {
-      // Crear el gasto
-      const gastoRef = adminDb.collection('gastos_proyecto').doc();
-      gastoId = gastoRef.id;
-
-      tx.set(gastoRef, {
-        proyectoId,
+    // Insert plano — el trigger trg_gastos_proyecto_costo_real actualiza
+    // proyectos.costo_real dentro de la misma transacción implícita del INSERT,
+    // cerrando la race condition que tenía la versión Firestore (lectura de
+    // costoReal fuera de la transacción, ver plan de migración).
+    const { data: gasto, error } = await supabaseAdmin
+      .from('gastos_proyecto')
+      .insert({
+        proyecto_id: proyectoId,
         categoria,
         descripcion,
         monto,
-        fecha: Timestamp.fromDate(new Date(fecha)),
-        proveedorId:  proveedorId  ?? null,
-        facturaId:    facturaId    ?? null,
-        ordenId:      ordenId      ?? null,
-        comprobante:  comprobante  ?? null,
-        creadoEn:     Timestamp.now(),
-        creadoPor:    user.uid,
-      });
+        fecha,
+        proveedor_id: proveedorId ?? null,
+        factura_id: facturaId ?? null,
+        orden_id: ordenId ?? null,
+        comprobante: comprobante ?? null,
+        creado_por: user.uid,
+      })
+      .select('id')
+      .single();
+    if (error) throw error;
 
-      // Actualizar costoReal del proyecto
-      const proyectoData = proyectoSnap.data()!;
-      const costoActual  = new Decimal(proyectoData.costoReal ?? 0);
-      const nuevoCosto   = costoActual.plus(monto).toDecimalPlaces(2).toNumber();
-
-      tx.update(proyectoRef, {
-        costoReal: nuevoCosto,
-        actualizadoEn: Timestamp.now(),
-        actualizadoPor: user.uid,
-      });
-    });
-
-    return NextResponse.json({ ok: true, id: gastoId! }, { status: 201 });
+    return NextResponse.json({ ok: true, id: gasto.id }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/gastos-proyecto]', e);
     return NextResponse.json({ error: 'Error al registrar gasto' }, { status: 500 });

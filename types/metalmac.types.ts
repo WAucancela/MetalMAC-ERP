@@ -470,7 +470,10 @@ export interface Proyecto {
   fechaInicio: string;
   fechaFin: string | null;
   responsableId: string;      // usuarioId del responsable
-  ordenesProduccion: string[]; // IDs de OPs vinculadas
+  // ordenesProduccion ya no se persiste: es un índice inverso redundante de
+  // ordenes_produccion.proyectoId (FK). Se consulta con SELECT ... WHERE
+  // proyecto_id = $1 y se devuelve como campo hermano en la respuesta de la API,
+  // no como parte de este tipo.
   creadoEn: string;
   creadoPor: string;
   actualizadoEn: string;

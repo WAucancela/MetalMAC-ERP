@@ -46,7 +46,7 @@ export default function ProyectoDetallePage() {
 
   if (!data) return <p className="text-sm text-muted-foreground">Proyecto no encontrado.</p>;
 
-  const { proyecto, gastos = [], costoReal } = data;
+  const { proyecto, gastos = [], costoReal, ordenesProduccion = [] } = data;
   const fechaInicio = tsToDate(proyecto.fechaInicio);
   const fechaFin    = tsToDate(proyecto.fechaFin);
 
@@ -135,11 +135,11 @@ export default function ProyectoDetallePage() {
       </div>
 
       {/* OPs vinculadas */}
-      {(proyecto.ordenesProduccion ?? []).length > 0 && (
+      {ordenesProduccion.length > 0 && (
         <div className="rounded-lg border p-6 space-y-2">
           <h2 className="text-sm font-semibold">Órdenes de Producción vinculadas</h2>
           <div className="flex flex-wrap gap-2">
-            {(proyecto.ordenesProduccion as string[]).map((opId) => (
+            {ordenesProduccion.map((opId: string) => (
               <Link
                 key={opId}
                 href={`/produccion/${opId}`}

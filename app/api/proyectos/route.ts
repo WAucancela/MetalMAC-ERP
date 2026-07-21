@@ -1,25 +1,15 @@
 /**
  * GET  /api/proyectos  — lista proyectos con filtros
- * POST /api/proyectos  — crea proyecto (solo GERENTE)
+ * POST /api/proyectos  — crea proyecto (solo GERENTE/BODEGUERO, vía canWrite)
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import {
+  getAuthenticatedUser, canWrite, encodeCursor, decodeCursor, cursorFilterAntesDe,
+} from '@/app/api/_helpers';
 import { ProyectoSchema, ProyectosQuerySchema } from '@/lib/validations/proyectos.schema';
-
-async function generarCodigoProyecto(): Promise<string> {
-  const year = new Date().getFullYear();
-  const counterRef = adminDb.collection('_counters').doc(`pry_${year}`);
-  const seq = await adminDb.runTransaction(async (tx) => {
-    const snap = await tx.get(counterRef);
-    const next = (snap.exists ? (snap.data()?.seq ?? 0) : 0) + 1;
-    tx.set(counterRef, { seq: next, year });
-    return next;
-  });
-  return `PRY-${year}-${String(seq).padStart(4, '0')}`;
-}
+import { mapProyectoRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -29,31 +19,37 @@ export async function GET(request: Request) {
   const qp = ProyectosQuerySchema.safeParse(Object.fromEntries(searchParams));
   if (!qp.success) return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
 
-  const { estado, cliente, limit: pageLimit, startAfter: cursorId } = qp.data;
+  const { estado, cliente, limit: pageLimit, startAfter: cursor } = qp.data;
 
   try {
-    let q = adminDb.collection('proyectos').orderBy('fechaInicio', 'desc') as Query;
-    if (estado) q = q.where('estado', '==', estado);
+    let query = supabaseAdmin
+      .from('proyectos')
+      .select('*')
+      .order('fecha_inicio', { ascending: false })
+      .order('id', { ascending: false });
 
-    if (cursorId) {
-      const cursor = await adminDb.collection('proyectos').doc(cursorId).get();
-      if (cursor.exists) q = q.startAfter(cursor);
+    if (estado) query = query.eq('estado', estado);
+    // `cliente` no está indexado (dataset chico, un solo taller) — igual que la
+    // versión Firestore, se filtra en memoria; el resto de filtros sí van en la query.
+    if (cliente) query = query.ilike('cliente', `%${cliente}%`);
+
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      if (decoded) query = query.or(cursorFilterAntesDe('fecha_inicio', decoded));
     }
-    q = q.limit(pageLimit);
+    query = query.limit(pageLimit);
 
-    const snap = await q.get();
-    let proyectos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const { data, error } = await query;
+    if (error) throw error;
 
-    // Filtro por cliente en memoria (no es campo indexado)
-    if (cliente) {
-      const cl = cliente.toLowerCase();
-      proyectos = proyectos.filter((p: any) =>
-        p.cliente?.toLowerCase().includes(cl),
-      );
-    }
+    const rows = data ?? [];
+    const last = rows.at(-1);
+    const nextCursor =
+      rows.length === pageLimit && last
+        ? encodeCursor({ valor: last.fecha_inicio, id: last.id })
+        : null;
 
-    const nextCursor = snap.docs.length === pageLimit ? snap.docs.at(-1)!.id : null;
-    return NextResponse.json({ ok: true, data: proyectos, nextCursor });
+    return NextResponse.json({ ok: true, data: rows.map(mapProyectoRow), nextCursor });
   } catch (e) {
     console.error('[GET /api/proyectos]', e);
     return NextResponse.json({ error: 'Error al obtener proyectos' }, { status: 500 });
@@ -71,31 +67,32 @@ export async function POST(request: Request) {
   const parsed = ProyectoSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
 
-  const { nombre, descripcion, cliente, presupuesto, estado, fechaInicio, fechaFin, ordenesProduccion } = parsed.data;
+  const { nombre, descripcion, cliente, presupuesto, estado, fechaInicio, fechaFin } = parsed.data;
 
   try {
-    const codigo = await generarCodigoProyecto();
-
-    const ref = await adminDb.collection('proyectos').add({
-      codigo,
-      nombre,
-      descripcion,
-      cliente,
-      presupuesto,
-      costoEstimado: 0,
-      costoReal: 0,
-      estado,
-      fechaInicio: Timestamp.fromDate(new Date(fechaInicio)),
-      fechaFin: fechaFin ? Timestamp.fromDate(new Date(fechaFin)) : null,
-      responsableId: user.uid,
-      ordenesProduccion,
-      creadoEn: Timestamp.now(),
-      creadoPor: user.uid,
-      actualizadoEn: Timestamp.now(),
-      actualizadoPor: user.uid,
+    // Contador anual + insert en una sola transacción implícita (RPC). El estado
+    // inicial siempre es PLANIFICACION dentro de la función; si el request pidió
+    // otro estado explícitamente, se aplica con un update posterior.
+    const { data: proyecto, error } = await supabaseAdmin.rpc('crear_proyecto', {
+      p_nombre: nombre,
+      p_descripcion: descripcion,
+      p_cliente: cliente,
+      p_presupuesto: presupuesto,
+      p_costo_estimado: 0,
+      p_fecha_inicio: fechaInicio,
+      p_responsable_id: user.uid,
+      p_usuario_id: user.uid,
     });
+    if (error) throw error;
 
-    return NextResponse.json({ ok: true, id: ref.id, codigo }, { status: 201 });
+    if (estado && estado !== 'PLANIFICACION') {
+      await supabaseAdmin.from('proyectos').update({ estado }).eq('id', proyecto.id);
+    }
+    if (fechaFin) {
+      await supabaseAdmin.from('proyectos').update({ fecha_fin: fechaFin }).eq('id', proyecto.id);
+    }
+
+    return NextResponse.json({ ok: true, id: proyecto.id, codigo: proyecto.codigo }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/proyectos]', e);
     return NextResponse.json({ error: 'Error al crear proyecto' }, { status: 500 });

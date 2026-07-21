@@ -6,7 +6,8 @@
  */
 import type { Database } from '@/types/supabase.types';
 import type {
-  Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado,
+  Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
+  GastoProyecto,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -16,6 +17,8 @@ type ProductoRow = Database['public']['Tables']['productos']['Row'];
 type ProveedorRow = Database['public']['Tables']['proveedores']['Row'];
 type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
 type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
+type ProyectoRow = Database['public']['Tables']['proyectos']['Row'];
+type GastoProyectoRow = Database['public']['Tables']['gastos_proyecto']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -101,6 +104,44 @@ export function mapOrdenProduccionRow(
       costoUnitarioAlMomento: Number(mr.costo_unitario_al_momento),
     })),
     creadoEn: row.creado_en,
+  };
+}
+
+export function mapProyectoRow(row: ProyectoRow): Proyecto {
+  return {
+    id: row.id,
+    codigo: row.codigo,
+    nombre: row.nombre,
+    descripcion: row.descripcion,
+    cliente: row.cliente,
+    presupuesto: Number(row.presupuesto),
+    costoEstimado: Number(row.costo_estimado),
+    costoReal: Number(row.costo_real),
+    estado: row.estado,
+    fechaInicio: row.fecha_inicio,
+    fechaFin: row.fecha_fin,
+    responsableId: row.responsable_id,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
+    actualizadoEn: row.actualizado_en,
+    actualizadoPor: row.actualizado_por ?? row.creado_por,
+  };
+}
+
+export function mapGastoProyectoRow(row: GastoProyectoRow): GastoProyecto {
+  return {
+    id: row.id,
+    proyectoId: row.proyecto_id,
+    categoria: row.categoria,
+    descripcion: row.descripcion,
+    monto: Number(row.monto),
+    fecha: row.fecha,
+    proveedorId: row.proveedor_id,
+    facturaId: row.factura_id,
+    ordenId: row.orden_id,
+    comprobante: row.comprobante,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
   };
 }
 

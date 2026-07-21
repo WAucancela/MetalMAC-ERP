@@ -1,26 +1,33 @@
 /**
  * GET    /api/gastos-proyecto/[id]
- * PUT    /api/gastos-proyecto/[id]  — actualiza gasto y recalcula costoReal del proyecto
- * DELETE /api/gastos-proyecto/[id]  — elimina gasto y descuenta de costoReal
+ * PUT    /api/gastos-proyecto/[id]  — actualiza gasto (el trigger recalcula
+ *                                     proyectos.costo_real automáticamente)
+ * DELETE /api/gastos-proyecto/[id]  — elimina gasto (el trigger descuenta de costo_real)
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ActualizarGastoSchema } from '@/lib/validations/proyectos.schema';
-import Decimal from 'decimal.js';
+import { mapGastoProyectoRow } from '@/lib/services/mappers';
+import type { Database } from '@/types/supabase.types';
 
 interface RouteParams { params: { id: string } }
+type GastoUpdate = Database['public']['Tables']['gastos_proyecto']['Update'];
 
 export async function GET(request: Request, { params }: RouteParams) {
   const user = await getAuthenticatedUser(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const snap = await adminDb.collection('gastos_proyecto').doc(params.id).get();
-  if (!snap.exists) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
+  const { data: gasto, error } = await supabaseAdmin
+    .from('gastos_proyecto')
+    .select('*')
+    .eq('id', params.id)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: 'Error al obtener gasto' }, { status: 500 });
+  if (!gasto) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
 
-  return NextResponse.json({ ok: true, data: { id: snap.id, ...snap.data() } });
+  return NextResponse.json({ ok: true, data: mapGastoProyectoRow(gasto) });
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
@@ -35,35 +42,26 @@ export async function PUT(request: Request, { params }: RouteParams) {
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
 
   try {
-    const gastoRef = adminDb.collection('gastos_proyecto').doc(params.id);
-    const gastoSnap = await gastoRef.get();
-    if (!gastoSnap.exists) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
+    const update: GastoUpdate = {};
+    if (parsed.data.categoria !== undefined)   update.categoria = parsed.data.categoria;
+    if (parsed.data.descripcion !== undefined) update.descripcion = parsed.data.descripcion;
+    if (parsed.data.monto !== undefined)       update.monto = parsed.data.monto;
+    if (parsed.data.fecha !== undefined)       update.fecha = parsed.data.fecha;
+    if (parsed.data.proveedorId !== undefined) update.proveedor_id = parsed.data.proveedorId;
+    if (parsed.data.facturaId !== undefined)   update.factura_id = parsed.data.facturaId;
+    if (parsed.data.ordenId !== undefined)     update.orden_id = parsed.data.ordenId;
+    if (parsed.data.comprobante !== undefined) update.comprobante = parsed.data.comprobante;
 
-    const gastoActual = gastoSnap.data()!;
-    const montoAnterior = gastoActual.monto as number;
-    const nuevoMonto    = parsed.data.monto ?? montoAnterior;
-    const diferencia    = new Decimal(nuevoMonto).minus(montoAnterior).toNumber();
-
-    await adminDb.runTransaction(async (tx) => {
-      // Actualizar el gasto
-      const updates: Record<string, any> = { ...parsed.data };
-      if (updates.fecha) updates.fecha = Timestamp.fromDate(new Date(updates.fecha));
-      tx.update(gastoRef, updates);
-
-      // Actualizar costoReal del proyecto si cambió el monto
-      if (diferencia !== 0) {
-        const proyectoRef  = adminDb.collection('proyectos').doc(gastoActual.proyectoId);
-        const proyectoSnap = await tx.get(proyectoRef);
-        if (proyectoSnap.exists) {
-          const costoActual = new Decimal(proyectoSnap.data()!.costoReal ?? 0);
-          tx.update(proyectoRef, {
-            costoReal: costoActual.plus(diferencia).toDecimalPlaces(2).toNumber(),
-            actualizadoEn: Timestamp.now(),
-            actualizadoPor: user.uid,
-          });
-        }
-      }
-    });
+    // Update plano — si `monto` cambió, el trigger trg_gastos_proyecto_costo_real
+    // ajusta proyectos.costo_real con el delta automáticamente.
+    const { data: updated, error } = await supabaseAdmin
+      .from('gastos_proyecto')
+      .update(update)
+      .eq('id', params.id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    if (!updated) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
 
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -78,28 +76,14 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   if (!canWrite(user)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
 
   try {
-    const gastoRef  = adminDb.collection('gastos_proyecto').doc(params.id);
-    const gastoSnap = await gastoRef.get();
-    if (!gastoSnap.exists) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
-
-    const { proyectoId, monto } = gastoSnap.data()!;
-
-    await adminDb.runTransaction(async (tx) => {
-      tx.delete(gastoRef);
-
-      // Descontar del costoReal del proyecto
-      const proyectoRef  = adminDb.collection('proyectos').doc(proyectoId);
-      const proyectoSnap = await tx.get(proyectoRef);
-      if (proyectoSnap.exists) {
-        const costoActual = new Decimal(proyectoSnap.data()!.costoReal ?? 0);
-        const nuevoCosto  = Decimal.max(0, costoActual.minus(monto)).toDecimalPlaces(2).toNumber();
-        tx.update(proyectoRef, {
-          costoReal: nuevoCosto,
-          actualizadoEn: Timestamp.now(),
-          actualizadoPor: user.uid,
-        });
-      }
-    });
+    const { data: deleted, error } = await supabaseAdmin
+      .from('gastos_proyecto')
+      .delete()
+      .eq('id', params.id)
+      .select('id')
+      .maybeSingle();
+    if (error) throw error;
+    if (!deleted) return NextResponse.json({ error: 'Gasto no encontrado' }, { status: 404 });
 
     return NextResponse.json({ ok: true });
   } catch (e) {
