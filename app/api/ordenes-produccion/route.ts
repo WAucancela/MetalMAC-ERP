@@ -1,29 +1,15 @@
 /**
  * GET  /api/ordenes-produccion  — lista OPs con filtros
- * POST /api/ordenes-produccion  — crea OP, valida stock, reserva materiales
+ * POST /api/ordenes-produccion  — crea OP (contador + insert atómico vía RPC)
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
-import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import {
+  getAuthenticatedUser, canWrite, encodeCursor, decodeCursor, cursorFilterDespuesDe,
+} from '@/app/api/_helpers';
 import { CrearOrdenSchema, OrdenesQuerySchema } from '@/lib/validations/produccion.schema';
-
-/** Genera el siguiente código de OP en una transacción (OP-YYYY-NNNN) */
-async function generarCodigoOP(): Promise<string> {
-  const year = new Date().getFullYear();
-  const counterRef = adminDb.collection('_counters').doc(`op_${year}`);
-
-  const seq = await adminDb.runTransaction(async (tx) => {
-    const snap = await tx.get(counterRef);
-    const current = snap.exists ? (snap.data()?.seq ?? 0) : 0;
-    const next = current + 1;
-    tx.set(counterRef, { seq: next, year });
-    return next;
-  });
-
-  return `OP-${year}-${String(seq).padStart(4, '0')}`;
-}
+import { mapOrdenProduccionRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -33,25 +19,39 @@ export async function GET(request: Request) {
   const qp = OrdenesQuerySchema.safeParse(Object.fromEntries(searchParams));
   if (!qp.success) return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
 
-  const { estado, productoId, proyectoId, desde, hasta, limit: pageLimit, startAfter: cursorId } = qp.data;
+  const { estado, productoId, proyectoId, desde, hasta, limit: pageLimit, startAfter: cursor } = qp.data;
 
   try {
-    let q = adminDb.collection('ordenes_produccion').orderBy('fechaEntrega', 'asc') as Query;
-    if (estado)     q = q.where('estado', '==', estado);
-    if (productoId) q = q.where('productoId', '==', productoId);
-    if (proyectoId) q = q.where('proyectoId', '==', proyectoId);
-    if (desde)      q = q.where('fechaEntrega', '>=', Timestamp.fromDate(new Date(desde)));
-    if (hasta)      q = q.where('fechaEntrega', '<=', Timestamp.fromDate(new Date(hasta)));
+    let query = supabaseAdmin
+      .from('ordenes_produccion')
+      .select('*, orden_materiales_reservados(*)')
+      .order('fecha_entrega', { ascending: true })
+      .order('id', { ascending: true });
 
-    if (cursorId) {
-      const cursor = await adminDb.collection('ordenes_produccion').doc(cursorId).get();
-      if (cursor.exists) q = q.startAfter(cursor);
+    if (estado)     query = query.eq('estado', estado);
+    if (productoId) query = query.eq('producto_id', productoId);
+    if (proyectoId) query = query.eq('proyecto_id', proyectoId);
+    if (desde)      query = query.gte('fecha_entrega', desde);
+    if (hasta)      query = query.lte('fecha_entrega', hasta);
+
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      if (decoded) query = query.or(cursorFilterDespuesDe('fecha_entrega', decoded));
     }
 
-    q = q.limit(pageLimit);
-    const snap = await q.get();
-    const ordenes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    const nextCursor = snap.docs.length === pageLimit ? snap.docs.at(-1)!.id : null;
+    query = query.limit(pageLimit);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const ordenes = rows.map((row) => mapOrdenProduccionRow(row, row.orden_materiales_reservados));
+
+    const last = rows.at(-1);
+    const nextCursor =
+      rows.length === pageLimit && last
+        ? encodeCursor({ valor: last.fecha_entrega, id: last.id })
+        : null;
 
     return NextResponse.json({ ok: true, data: ordenes, nextCursor });
   } catch (e) {
@@ -74,40 +74,41 @@ export async function POST(request: Request) {
   const { productoId, cantidad, fechaEntrega, proyectoId, notas } = parsed.data;
 
   try {
-    // Verificar que el producto existe
-    const prodSnap = await adminDb.collection('productos').doc(productoId).get();
-    if (!prodSnap.exists) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+    // Verificar que el producto existe (404 amigable antes de intentar el RPC,
+    // que sólo distingue BOM_NO_ENCONTRADO → 422)
+    const { data: producto, error: prodError } = await supabaseAdmin
+      .from('productos')
+      .select('id')
+      .eq('id', productoId)
+      .maybeSingle();
+    if (prodError) throw prodError;
+    if (!producto) return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
 
-    // Verificar que tiene BOM
-    const bomSnap = await adminDb.collection('bom').doc(productoId).get();
-    if (!bomSnap.exists) {
-      return NextResponse.json(
-        { error: `El producto no tiene BOM configurado. Configúralo en /productos/${productoId}` },
-        { status: 422 },
-      );
-    }
-
-    const codigo = await generarCodigoOP();
-
-    // Crear la OP en BORRADOR — la reserva de materiales se hace por el cliente
-    // usando el endpoint PATCH /[id] { estado: 'EN_PROCESO' }
-    const ref = await adminDb.collection('ordenes_produccion').add({
-      codigo,
-      productoId,
-      cantidad,
-      estado: 'BORRADOR',
-      fechaInicio: Timestamp.now(),
-      fechaEntrega: Timestamp.fromDate(new Date(fechaEntrega)),
-      costoEstimado: 0,   // se calcula al pasar a EN_PROCESO
-      costoReal: null,
-      proyectoId: proyectoId ?? null,
-      notas,
-      materialesReservados: [],
-      creadoEn: Timestamp.now(),
-      creadoPor: user.uid,
+    // Crea la OP en BORRADOR — la reserva de materiales se hace por el cliente
+    // usando el endpoint PATCH /[id] { estado: 'EN_PROCESO' }. El contador anual
+    // y el insert de la fila corren en una sola transacción implícita (RPC).
+    const { data: orden, error } = await supabaseAdmin.rpc('crear_orden_produccion', {
+      p_producto_id: productoId,
+      p_cantidad: cantidad,
+      p_fecha_entrega: fechaEntrega,
+      // `supabase gen types` no marca este arg como nullable aunque el parámetro
+      // Postgres (uuid, sin default) sí acepta NULL — cast documentado.
+      p_proyecto_id: (proyectoId ?? null) as string,
+      p_notas: notas,
+      p_usuario_id: user.uid,
     });
 
-    return NextResponse.json({ ok: true, id: ref.id, codigo }, { status: 201 });
+    if (error) {
+      if (error.message.startsWith('BOM_NO_ENCONTRADO')) {
+        return NextResponse.json(
+          { error: `El producto no tiene BOM configurado. Configúralo en /productos/${productoId}` },
+          { status: 422 },
+        );
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true, id: orden.id, codigo: orden.codigo }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/ordenes-produccion]', e);
     return NextResponse.json({ error: 'Error al crear orden de producción' }, { status: 500 });

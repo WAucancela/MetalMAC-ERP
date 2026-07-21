@@ -102,3 +102,42 @@ export const ROLES = {
 export function canWrite(user: AuthenticatedUser): boolean {
   return ['GERENTE', 'BODEGUERO'].includes(user.rol);
 }
+
+// ── Paginación por cursor (columna_orden, id) ──────────────────────────────────
+//
+// Reemplaza el `startAfter(docSnapshot)` de Firestore, que no tiene equivalente
+// directo en Postgres/PostgREST. El cursor codifica el punto (valor, id) de la
+// última fila de la página anterior; la siguiente página pide filas
+// estrictamente "antes"/"después" en ese orden — usando `id` como desempate
+// porque la columna de orden sola no es única (fecha, fecha_entrega, etc.).
+// Reutilizado por las rutas con listados paginados por una columna de fecha
+// (movimientos, órdenes de producción, gastos, facturas).
+
+export interface Cursor {
+  valor: string;
+  id: string;
+}
+
+export function encodeCursor(cursor: Cursor): string {
+  return Buffer.from(JSON.stringify(cursor)).toString('base64url');
+}
+
+export function decodeCursor(raw: string): Cursor | null {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
+    if (typeof parsed?.valor === 'string' && typeof parsed?.id === 'string') return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Filtro PostgREST para "(campo, id) < (cursor.valor, cursor.id)" — para orden campo desc, id desc. */
+export function cursorFilterAntesDe(campo: string, cursor: Cursor): string {
+  return `${campo}.lt.${cursor.valor},and(${campo}.eq.${cursor.valor},id.lt.${cursor.id})`;
+}
+
+/** Filtro PostgREST para "(campo, id) > (cursor.valor, cursor.id)" — para orden campo asc, id asc. */
+export function cursorFilterDespuesDe(campo: string, cursor: Cursor): string {
+  return `${campo}.gt.${cursor.valor},and(${campo}.eq.${cursor.valor},id.gt.${cursor.id})`;
+}

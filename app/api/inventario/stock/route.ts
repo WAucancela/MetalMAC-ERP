@@ -4,11 +4,11 @@
  */
 import { NextRequest } from 'next/server';
 import { obtenerAlertasStockBajo } from '@/lib/services/inventario.service';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   ok, unauthorized, internalError, getAuthenticatedUser,
 } from '@/app/api/_helpers';
-import type { Stock } from '@/types/metalmac.types';
+import { mapStockRow } from '@/lib/services/mappers';
 
 export async function GET(request: NextRequest) {
   const user = await getAuthenticatedUser(request);
@@ -23,12 +23,10 @@ export async function GET(request: NextRequest) {
       return ok(alertas);
     }
 
-    const snap = await adminDb.collection('stock').get();
-    const stock = snap.docs.map((d) => ({
-      materialId: d.id,
-      ...(d.data() as Omit<Stock, 'materialId'>),
-    }));
-    return ok(stock);
+    const { data, error } = await supabaseAdmin.from('stock').select('*');
+    if (error) throw error;
+
+    return ok((data ?? []).map(mapStockRow));
   } catch (err) {
     console.error('[GET /stock]', err);
     return internalError();

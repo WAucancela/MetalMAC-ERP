@@ -5,11 +5,17 @@
  * de la capa de servicios.
  */
 import type { Database } from '@/types/supabase.types';
-import type { Material, Stock, MovimientoInventario } from '@/types/metalmac.types';
+import type {
+  Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado,
+} from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
 type StockRow = Database['public']['Tables']['stock']['Row'];
 type MovimientoRow = Database['public']['Tables']['movimientos_inventario']['Row'];
+type ProductoRow = Database['public']['Tables']['productos']['Row'];
+type ProveedorRow = Database['public']['Tables']['proveedores']['Row'];
+type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
+type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -38,6 +44,63 @@ export function mapStockRow(row: StockRow): Stock {
     cantidadMaxima: row.cantidad_maxima === null ? null : Number(row.cantidad_maxima),
     ubicacion: row.ubicacion,
     actualizadoEn: row.actualizado_en,
+  };
+}
+
+export function mapProductoRow(row: ProductoRow): Producto {
+  return {
+    id: row.id,
+    codigo: row.codigo,
+    nombre: row.nombre,
+    descripcion: row.descripcion,
+    tipo: row.tipo,
+    unidadVenta: row.unidad_venta,
+    precioVenta: Number(row.precio_venta),
+    activo: row.activo,
+  };
+}
+
+export function mapProveedorRow(row: ProveedorRow): Proveedor {
+  return {
+    id: row.id,
+    ruc: row.ruc,
+    razonSocial: row.razon_social,
+    nombreComercial: row.nombre_comercial,
+    tipoContribuyente: row.tipo_contribuyente,
+    contribuyenteEspecial: row.contribuyente_especial,
+    obligaContabilidad: row.obliga_contabilidad,
+    agenteRetencion: row.agente_retencion,
+    diasCredito: row.dias_credito,
+    telefonoPrincipal: row.telefono_principal,
+    emailPrincipal: row.email_principal,
+    ciudad: row.ciudad,
+    activo: row.activo,
+  };
+}
+
+export function mapOrdenProduccionRow(
+  row: OrdenRow,
+  materialesReservados: OrdenMaterialReservadoRow[] = [],
+): OrdenProduccion {
+  return {
+    id: row.id,
+    codigo: row.codigo,
+    productoId: row.producto_id,
+    cantidad: Number(row.cantidad),
+    estado: row.estado,
+    fechaInicio: row.fecha_inicio,
+    fechaEntrega: row.fecha_entrega,
+    costoEstimado: Number(row.costo_estimado),
+    costoReal: row.costo_real === null ? null : Number(row.costo_real),
+    fechaCompletada: row.fecha_completada,
+    proyectoId: row.proyecto_id,
+    notas: row.notas,
+    materialesReservados: materialesReservados.map((mr): MaterialReservado => ({
+      materialId: mr.material_id,
+      cantidadReservada: Number(mr.cantidad_reservada),
+      costoUnitarioAlMomento: Number(mr.costo_unitario_al_momento),
+    })),
+    creadoEn: row.creado_en,
   };
 }
 

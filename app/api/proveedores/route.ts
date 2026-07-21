@@ -4,10 +4,10 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ProveedorSchema, ProveedoresQuerySchema } from '@/lib/validations/sri.schema';
+import { mapProveedorRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -22,30 +22,20 @@ export async function GET(request: Request) {
   const { activo, q: searchTerm, limit: pageLimit } = queryParsed.data;
 
   try {
-    let ref = adminDb.collection('proveedores').orderBy('razonSocial');
+    let query = supabaseAdmin.from('proveedores').select('*').order('razon_social');
 
-    // Solo filtrar por activo cuando se especifica explícitamente
-    if (activo !== undefined) {
-      ref = ref.where('activo', '==', activo) as typeof ref;
-    }
-
-    ref = ref.limit(pageLimit) as typeof ref;
-    const snap = await ref.get();
-
-    let proveedores = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-    // Filtro por término de búsqueda (Firestore no soporta full-text nativo)
+    if (activo !== undefined) query = query.eq('activo', activo);
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      proveedores = proveedores.filter(
-        (p: Record<string, unknown>) =>
-          String(p.razonSocial ?? '').toLowerCase().includes(term) ||
-          String(p.ruc ?? '').includes(term) ||
-          String(p.nombreComercial ?? '').toLowerCase().includes(term),
+      query = query.or(
+        `razon_social.ilike.%${searchTerm}%,ruc.ilike.%${searchTerm}%,nombre_comercial.ilike.%${searchTerm}%`,
       );
     }
+    query = query.limit(pageLimit);
 
-    return NextResponse.json({ ok: true, data: proveedores });
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true, data: (data ?? []).map(mapProveedorRow) });
   } catch (e) {
     console.error('[GET /api/proveedores]', e);
     return NextResponse.json({ error: 'Error al obtener proveedores' }, { status: 500 });
@@ -65,28 +55,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Verificar RUC único
   try {
-    const existing = await adminDb
-      .collection('proveedores')
-      .where('ruc', '==', parsed.data.ruc)
-      .limit(1)
-      .get();
+    const { data: proveedor, error } = await supabaseAdmin
+      .from('proveedores')
+      .insert({
+        ruc: parsed.data.ruc,
+        razon_social: parsed.data.razonSocial,
+        nombre_comercial: parsed.data.nombreComercial,
+        tipo_contribuyente: parsed.data.tipoContribuyente,
+        contribuyente_especial: parsed.data.contribuyenteEspecial,
+        obliga_contabilidad: parsed.data.obligaContabilidad,
+        agente_retencion: parsed.data.agenteRetencion,
+        dias_credito: parsed.data.diasCredito,
+        telefono_principal: parsed.data.telefonoPrincipal,
+        email_principal: parsed.data.emailPrincipal,
+        ciudad: parsed.data.ciudad,
+        activo: parsed.data.activo,
+      })
+      .select()
+      .single();
 
-    if (!existing.empty) {
-      return NextResponse.json(
-        { error: `Ya existe un proveedor con el RUC ${parsed.data.ruc}` },
-        { status: 409 },
-      );
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: `Ya existe un proveedor con el RUC ${parsed.data.ruc}` },
+          { status: 409 },
+        );
+      }
+      throw error;
     }
 
-    const docRef = await adminDb.collection('proveedores').add({
-      ...parsed.data,
-      creadoEn: Timestamp.now(),
-      creadoPor: user.uid,
-    });
-
-    return NextResponse.json({ ok: true, id: docRef.id }, { status: 201 });
+    return NextResponse.json({ ok: true, id: proveedor.id }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/proveedores]', e);
     return NextResponse.json({ error: 'Error al crear proveedor' }, { status: 500 });

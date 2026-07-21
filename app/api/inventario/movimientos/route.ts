@@ -1,10 +1,10 @@
 /**
- * POST /api/inventario/movimientos  → registrar movimiento (usa Firestore Transaction)
+ * POST /api/inventario/movimientos  → registrar movimiento (usa la función RPC
+ *                                      registrar_movimiento_inventario)
  * GET  /api/inventario/movimientos  → listar movimientos con filtros
  */
 import { NextRequest } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { registrarMovimiento } from '@/lib/services/inventario.service';
 import {
   CreateMovimientoSchema,
@@ -13,14 +13,15 @@ import {
 import {
   ok, created, badRequest, unauthorized, forbidden, notFound,
   fromZodError, internalError, getAuthenticatedUser, canWrite,
+  encodeCursor, decodeCursor, cursorFilterAntesDe,
 } from '@/app/api/_helpers';
 import {
   StockInsuficienteError,
   MaterialNoEncontradoError,
 } from '@/types/metalmac.types';
-import type { MovimientoInventario } from '@/types/metalmac.types';
+import { mapMovimientoRow } from '@/lib/services/mappers';
 
-// POST — registrar movimiento con Transaction
+// POST — registrar movimiento vía RPC
 export async function POST(request: NextRequest) {
   const user = await getAuthenticatedUser(request);
   if (!user)           return unauthorized();
@@ -64,31 +65,34 @@ export async function GET(request: NextRequest) {
   const { materialId, tipo, desde, hasta, limite, cursor } = parsed.data;
 
   try {
-    let ref = adminDb
-      .collection('movimientos_inventario')
-      .orderBy('fecha', 'desc') as Query;
+    let query = supabaseAdmin
+      .from('movimientos_inventario')
+      .select('*')
+      .order('fecha', { ascending: false })
+      .order('id', { ascending: false });
 
-    if (materialId) ref = ref.where('materialId', '==', materialId);
-    if (tipo)       ref = ref.where('tipo', '==', tipo);
-    if (desde)      ref = ref.where('fecha', '>=', Timestamp.fromDate(desde));
-    if (hasta)      ref = ref.where('fecha', '<=', Timestamp.fromDate(hasta));
-
-    ref = ref.limit(limite);
+    if (materialId) query = query.eq('material_id', materialId);
+    if (tipo)       query = query.eq('tipo', tipo);
+    if (desde)      query = query.gte('fecha', desde.toISOString());
+    if (hasta)      query = query.lte('fecha', hasta.toISOString());
 
     if (cursor) {
-      const cursorDoc = await adminDb.collection('movimientos_inventario').doc(cursor).get();
-      if (cursorDoc.exists) ref = ref.startAfter(cursorDoc);
+      const decoded = decodeCursor(cursor);
+      if (decoded) query = query.or(cursorFilterAntesDe('fecha', decoded));
     }
 
-    const snap = await ref.get();
-    const movimientos = snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<MovimientoInventario, 'id'>),
-    }));
+    query = query.limit(limite);
 
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const movimientos = rows.map(mapMovimientoRow);
+
+    const last = rows.at(-1);
     const nextCursor =
-      snap.docs.length === limite
-        ? snap.docs.at(-1)?.id
+      rows.length === limite && last
+        ? encodeCursor({ valor: last.fecha, id: last.id })
         : undefined;
 
     return ok({ movimientos, nextCursor });

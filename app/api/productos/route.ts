@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ProductoSchema, ProductosQuerySchema } from '@/lib/validations/produccion.schema';
+import { mapProductoRow } from '@/lib/services/mappers';
 
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
@@ -15,24 +15,16 @@ export async function GET(request: Request) {
   const { tipo, activo, q: term, limit: pageLimit } = qp.data;
 
   try {
-    let ref = adminDb.collection('productos').orderBy('nombre') as FirebaseFirestore.Query;
-    if (tipo)           ref = ref.where('tipo', '==', tipo);
-    if (activo !== undefined) ref = ref.where('activo', '==', activo);
-    ref = ref.limit(pageLimit);
+    let query = supabaseAdmin.from('productos').select('*').order('nombre');
+    if (tipo)                 query = query.eq('tipo', tipo);
+    if (activo !== undefined) query = query.eq('activo', activo);
+    if (term)                 query = query.or(`nombre.ilike.%${term}%,codigo.ilike.%${term}%`);
+    query = query.limit(pageLimit);
 
-    const snap = await ref.get();
-    let productos = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const { data, error } = await query;
+    if (error) throw error;
 
-    if (term) {
-      const t = term.toLowerCase();
-      productos = productos.filter(
-        (p: Record<string, unknown>) =>
-          String(p.nombre ?? '').toLowerCase().includes(t) ||
-          String(p.codigo ?? '').toLowerCase().includes(t),
-      );
-    }
-
-    return NextResponse.json({ ok: true, data: productos });
+    return NextResponse.json({ ok: true, data: (data ?? []).map(mapProductoRow) });
   } catch (e) {
     console.error('[GET /api/productos]', e);
     return NextResponse.json({ error: 'Error al obtener productos' }, { status: 500 });
@@ -51,15 +43,29 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
 
   try {
-    const existing = await adminDb.collection('productos').where('codigo', '==', parsed.data.codigo).limit(1).get();
-    if (!existing.empty) return NextResponse.json({ error: `Código ${parsed.data.codigo} ya existe` }, { status: 409 });
+    const { data: producto, error } = await supabaseAdmin
+      .from('productos')
+      .insert({
+        codigo: parsed.data.codigo,
+        nombre: parsed.data.nombre,
+        descripcion: parsed.data.descripcion,
+        tipo: parsed.data.tipo,
+        unidad_venta: parsed.data.unidadVenta,
+        precio_venta: parsed.data.precioVenta,
+        activo: parsed.data.activo,
+      })
+      .select()
+      .single();
 
-    const ref = await adminDb.collection('productos').add({
-      ...parsed.data,
-      creadoEn: Timestamp.now(),
-      creadoPor: user.uid,
-    });
-    return NextResponse.json({ ok: true, id: ref.id }, { status: 201 });
+    if (error) {
+      // Violación de unicidad de `codigo` (equivalente al pre-chequeo + 409 de la versión Firestore)
+      if (error.code === '23505') {
+        return NextResponse.json({ error: `Código ${parsed.data.codigo} ya existe` }, { status: 409 });
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true, id: producto.id }, { status: 201 });
   } catch (e) {
     console.error('[POST /api/productos]', e);
     return NextResponse.json({ error: 'Error al crear producto' }, { status: 500 });

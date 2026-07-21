@@ -10,20 +10,21 @@
  */
 
 import { NextResponse } from 'next/server';
-import { Timestamp } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ActualizarEstadoOrdenSchema } from '@/lib/validations/produccion.schema';
 import {
   reservarMaterialesBOM,
   liberarMaterialesBOM,
   consumirMaterialesBOM,
+  cargarBOM,
+  cargarStocksBOM,
   calcularCostoProducto,
   validarDisponibilidadBOM,
   BOMNoEncontradoError,
   StockInsuficienteParaOPError,
 } from '@/lib/services/bom.service';
-import type { BOM, OrdenProduccion } from '@/types/metalmac.types';
+import { mapOrdenProduccionRow } from '@/lib/services/mappers';
 
 interface RouteParams { params: { id: string } }
 
@@ -36,18 +37,18 @@ export async function GET(request: Request, { params }: RouteParams) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const snap = await adminDb.collection('ordenes_produccion').doc(params.id).get();
-    if (!snap.exists) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
+    const { data: orden, error } = await supabaseAdmin
+      .from('ordenes_produccion')
+      .select('*, orden_materiales_reservados(*), productos(id, nombre, codigo)')
+      .eq('id', params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!orden) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
 
-    const orden = { id: snap.id, ...snap.data() } as OrdenProduccion & { id: string };
-
-    // Enriquecer con datos del producto (nombre, codigo)
-    const prodSnap = await adminDb.collection('productos').doc(orden.productoId).get();
-    const producto = prodSnap.exists
-      ? { id: prodSnap.id, nombre: prodSnap.data()?.nombre, codigo: prodSnap.data()?.codigo }
-      : null;
-
-    return NextResponse.json({ ok: true, data: { ...orden, producto } });
+    return NextResponse.json({
+      ok: true,
+      data: { ...mapOrdenProduccionRow(orden, orden.orden_materiales_reservados), producto: orden.productos },
+    });
   } catch (e) {
     console.error(`[GET /api/ordenes-produccion/${params.id}]`, e);
     return NextResponse.json({ error: 'Error al obtener orden' }, { status: 500 });
@@ -72,11 +73,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { estado: nuevoEstado, notas } = parsed.data;
 
   try {
-    const ordenRef = adminDb.collection('ordenes_produccion').doc(params.id);
-    const ordenSnap = await ordenRef.get();
-    if (!ordenSnap.exists) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
+    const { data: orden, error: ordenError } = await supabaseAdmin
+      .from('ordenes_produccion')
+      .select('*')
+      .eq('id', params.id)
+      .maybeSingle();
+    if (ordenError) throw ordenError;
+    if (!orden) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
 
-    const orden = ordenSnap.data() as OrdenProduccion;
     const estadoActual = orden.estado;
 
     // ── Validar transiciones permitidas ──────────────────────────────────────
@@ -94,49 +98,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
     // ── BORRADOR → CANCELADA (sin stock) ────────────────────────────────────
     if (estadoActual === 'BORRADOR' && nuevoEstado === 'CANCELADA') {
-      await ordenRef.update({
+      await supabaseAdmin.from('ordenes_produccion').update({
         estado: 'CANCELADA',
         notas: notas ?? orden.notas,
-        actualizadoEn: Timestamp.now(),
-        actualizadoPor: user.uid,
-      });
+        actualizado_en: new Date().toISOString(),
+        actualizado_por: user.uid,
+      }).eq('id', params.id);
+
       return NextResponse.json({ ok: true });
     }
 
     // ── BORRADOR → EN_PROCESO (reservar materiales) ──────────────────────────
     if (estadoActual === 'BORRADOR' && nuevoEstado === 'EN_PROCESO') {
-      const bomSnap = await adminDb.collection('bom').doc(orden.productoId).get();
-      if (!bomSnap.exists) {
-        return NextResponse.json(
-          { error: 'El producto no tiene BOM configurado' },
-          { status: 422 },
-        );
-      }
-      const bom = { productoId: bomSnap.id, ...bomSnap.data()! } as BOM;
+      const bom = await cargarBOM(orden.producto_id); // 422 vía BOMNoEncontradoError si no existe
 
-      // Cargar unidades para cálculo de merma
-      const unidadesSnap = await adminDb.collection('unidades_medida').get();
-      const unidadesMap = Object.fromEntries(
-        unidadesSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]),
-      ) as Record<string, any>;
-      const unidades = orden.cantidad;
-
-      // Cargar stocks para validar disponibilidad
-      const materialIds = bom.lineas.map((l) => l.materialId);
-      const stockSnapsPre: Record<string, any> = {};
-      // whereIn en batches de 10
-      for (let i = 0; i < materialIds.length; i += 10) {
-        const batch = materialIds.slice(i, i + 10);
-        const sSnap = await adminDb
-          .collection('stock')
-          .where('materialId', 'in', batch)
-          .get();
-        sSnap.docs.forEach((d) => {
-          stockSnapsPre[d.data().materialId] = { id: d.id, ...d.data() };
-        });
-      }
-
-      const validacion = validarDisponibilidadBOM(bom, stockSnapsPre, unidades);
+      const stockPorId = await cargarStocksBOM(bom.lineas);
+      const validacion = validarDisponibilidadBOM(bom, stockPorId, orden.cantidad);
       if (!validacion.valido) {
         return NextResponse.json(
           {
@@ -148,64 +125,60 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
 
       // Calcular costo estimado
-      const costoResult = await calcularCostoProducto(orden.productoId, orden.cantidad);
+      const costoResult = await calcularCostoProducto(orden.producto_id, orden.cantidad);
 
-      // Reservar materiales (Firestore Transaction dentro de bom.service)
-      const materialesReservados = await reservarMaterialesBOM(
-        bom,
-        orden.cantidad,
-        params.id,
-        user.uid,
-      );
+      // Reservar materiales — función plpgsql con SELECT ... FOR UPDATE (todo-o-nada)
+      await reservarMaterialesBOM(orden.producto_id, orden.cantidad, params.id, user.uid);
 
-      await ordenRef.update({
+      await supabaseAdmin.from('ordenes_produccion').update({
         estado: 'EN_PROCESO',
-        materialesReservados,
-        costoEstimado: costoResult.costoTotal,
+        costo_estimado: costoResult.costoTotal,
         notas: notas ?? orden.notas,
-        actualizadoEn: Timestamp.now(),
-        actualizadoPor: user.uid,
-      });
+        actualizado_en: new Date().toISOString(),
+        actualizado_por: user.uid,
+      }).eq('id', params.id);
 
       return NextResponse.json({ ok: true, costoEstimado: costoResult.costoTotal });
     }
 
     // ── EN_PROCESO → COMPLETADA (consumir materiales) ────────────────────────
     if (estadoActual === 'EN_PROCESO' && nuevoEstado === 'COMPLETADA') {
-      const materialesReservados = orden.materialesReservados ?? [];
+      const { data: reservados, error: resError } = await supabaseAdmin
+        .from('orden_materiales_reservados')
+        .select('cantidad_reservada, costo_unitario_al_momento')
+        .eq('orden_id', params.id);
+      if (resError) throw resError;
 
-      await consumirMaterialesBOM(materialesReservados, params.id, user.uid);
+      await consumirMaterialesBOM(params.id, user.uid);
 
-      // costoReal = suma de (cantidadConsumida * costoUnitarioAlMomento) de cada material reservado
-      const costoReal = materialesReservados.reduce(
-        (acc, m) => acc + (m.cantidadReservada ?? 0) * (m.costoUnitarioAlMomento ?? 0),
+      // costoReal = suma de (cantidadReservada * costoUnitarioAlMomento) de cada material reservado
+      const costoReal = (reservados ?? []).reduce(
+        (acc, m) => acc + Number(m.cantidad_reservada) * Number(m.costo_unitario_al_momento),
         0,
       );
 
-      await ordenRef.update({
+      await supabaseAdmin.from('ordenes_produccion').update({
         estado: 'COMPLETADA',
-        costoReal,
-        fechaCompletada: Timestamp.now(),
+        costo_real: costoReal,
+        fecha_completada: new Date().toISOString(),
         notas: notas ?? orden.notas,
-        actualizadoEn: Timestamp.now(),
-        actualizadoPor: user.uid,
-      });
+        actualizado_en: new Date().toISOString(),
+        actualizado_por: user.uid,
+      }).eq('id', params.id);
 
       return NextResponse.json({ ok: true, costoReal });
     }
 
     // ── EN_PROCESO → CANCELADA (liberar materiales) ──────────────────────────
     if (estadoActual === 'EN_PROCESO' && nuevoEstado === 'CANCELADA') {
-      const materialesReservados = orden.materialesReservados ?? [];
+      await liberarMaterialesBOM(params.id, user.uid);
 
-      await liberarMaterialesBOM(materialesReservados, params.id, user.uid);
-
-      await ordenRef.update({
+      await supabaseAdmin.from('ordenes_produccion').update({
         estado: 'CANCELADA',
         notas: notas ?? orden.notas,
-        actualizadoEn: Timestamp.now(),
-        actualizadoPor: user.uid,
-      });
+        actualizado_en: new Date().toISOString(),
+        actualizado_por: user.uid,
+      }).eq('id', params.id);
 
       return NextResponse.json({ ok: true });
     }

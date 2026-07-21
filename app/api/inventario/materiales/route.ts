@@ -3,8 +3,7 @@
  * POST /api/inventario/materiales   → crear material
  */
 import { NextRequest } from 'next/server';
-import { Timestamp, type Query } from 'firebase-admin/firestore';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   CreateMaterialSchema,
   MaterialesQuerySchema,
@@ -13,7 +12,7 @@ import {
   ok, created, badRequest, unauthorized, forbidden,
   fromZodError, internalError, getAuthenticatedUser, canWrite,
 } from '@/app/api/_helpers';
-import type { Material, Stock } from '@/types/metalmac.types';
+import { mapMaterialRow, mapStockRow } from '@/lib/services/mappers';
 
 // GET — lista materiales + stock actual
 export async function GET(request: NextRequest) {
@@ -28,35 +27,23 @@ export async function GET(request: NextRequest) {
   const { tipo, activo, q, limite } = parsed.data;
 
   try {
-    let ref = adminDb.collection('materiales').orderBy('nombre') as Query;
-    if (tipo)   ref = ref.where('tipo', '==', tipo);
-    if (activo !== undefined) ref = ref.where('activo', '==', activo);
-    ref = ref.limit(limite);
+    let query = supabaseAdmin
+      .from('materiales')
+      .select('*, stock(*)')
+      .order('nombre');
 
-    const [materialesSnap, stockSnap] = await Promise.all([
-      ref.get(),
-      adminDb.collection('stock').get(),
-    ]);
+    if (tipo) query = query.eq('tipo', tipo);
+    if (activo !== undefined) query = query.eq('activo', activo);
+    if (q) query = query.or(`nombre.ilike.%${q}%,codigo_interno.ilike.%${q}%`);
+    query = query.limit(limite);
 
-    const stockMap = new Map(
-      stockSnap.docs.map((d) => [d.id, d.data() as Omit<Stock, 'materialId'>]),
-    );
+    const { data, error } = await query;
+    if (error) throw error;
 
-    let materiales = materialesSnap.docs.map((d) => ({
-      ...(d.data() as Omit<Material, 'id'>),
-      id:    d.id,
-      stock: stockMap.get(d.id) ?? null,
+    const materiales = (data ?? []).map((row) => ({
+      ...mapMaterialRow(row),
+      stock: row.stock ? mapStockRow(row.stock) : null,
     }));
-
-    // Filtro por texto en memoria (Firestore no soporta LIKE nativo)
-    if (q) {
-      const term = q.toLowerCase();
-      materiales = materiales.filter(
-        (m) =>
-          m.nombre.toLowerCase().includes(term) ||
-          m.codigoInterno.toLowerCase().includes(term),
-      );
-    }
 
     return ok(materiales);
   } catch (err) {
@@ -78,27 +65,36 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return fromZodError(parsed.error);
 
   try {
-    const now = Timestamp.now();
-    const data = {
-      ...parsed.data,
-      creadoEn:     now,
-      modificadoEn: now,
-    };
+    const { data: material, error } = await supabaseAdmin
+      .from('materiales')
+      .insert({
+        codigo_interno: parsed.data.codigoInterno,
+        nombre: parsed.data.nombre,
+        descripcion: parsed.data.descripcion,
+        tipo: parsed.data.tipo,
+        categoria_id: parsed.data.categoriaId,
+        grado: parsed.data.grado,
+        unidad_base_id: parsed.data.unidadBaseId,
+        costo_unitario: parsed.data.costoUnitario,
+        especificaciones: parsed.data.especificaciones,
+        activo: parsed.data.activo,
+      })
+      .select()
+      .single();
+    if (error) throw error;
 
-    const docRef = await adminDb.collection('materiales').add(data);
-
-    // Crear documento de stock en 0
-    await adminDb.collection('stock').doc(docRef.id).set({
-      materialId:         docRef.id,
-      cantidadDisponible: 0,
-      cantidadReservada:  0,
-      cantidadMinima:     0,
-      cantidadMaxima:     null,
-      ubicacion:          '',
-      actualizadoEn:      now,
+    // Crear fila de stock en 0
+    const { error: stockError } = await supabaseAdmin.from('stock').insert({
+      material_id: material.id,
+      cantidad_disponible: 0,
+      cantidad_reservada: 0,
+      cantidad_minima: 0,
+      cantidad_maxima: null,
+      ubicacion: '',
     });
+    if (stockError) throw stockError;
 
-    return created({ id: docRef.id, ...data });
+    return created(mapMaterialRow(material));
   } catch (err) {
     console.error('[POST /materiales]', err);
     return internalError();

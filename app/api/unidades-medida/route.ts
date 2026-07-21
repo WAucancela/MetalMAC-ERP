@@ -3,7 +3,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
 
 export async function GET(request: Request) {
@@ -11,8 +11,12 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const snap = await adminDb.collection('unidades_medida').orderBy('nombre').get();
-    const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const { data, error } = await supabaseAdmin
+      .from('unidades_medida')
+      .select('*')
+      .order('nombre');
+    if (error) throw error;
+
     return NextResponse.json({ ok: true, data });
   } catch (e) {
     console.error('[GET /api/unidades-medida]', e);
