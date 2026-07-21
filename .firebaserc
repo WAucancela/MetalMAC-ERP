@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "metalmac-erp",
+    "production": "metalmac-erp",
+    "staging": "metalmac-erp-staging"
+  }
+}

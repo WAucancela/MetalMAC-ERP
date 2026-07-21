@@ -1,0 +1,98 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import {
+  Package, Truck, FileText, Factory, FolderOpen,
+  LayoutDashboard, ChevronRight, Boxes, LogOut,
+} from 'lucide-react';
+import { useAlertasStockBajo } from '@/hooks/useStock';
+import { useAuth } from '@/hooks/useAuth';
+
+const NAV_ITEMS = [
+  { href: '/',                             label: 'Dashboard',        icon: LayoutDashboard },
+  { href: '/inventario',                   label: 'Inventario',       icon: Package },
+  { href: '/productos',                    label: 'Productos',        icon: Boxes },
+  { href: '/produccion',                   label: 'Producción',       icon: Factory },
+  { href: '/proveedores',                  label: 'Proveedores',      icon: Truck },
+  { href: '/contabilidad/facturas-compra', label: 'Facturas Compra',  icon: FileText },
+  { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
+] as const;
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const router   = useRouter();
+  const { data: alertas } = useAlertasStockBajo();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/login');
+  };
+
+  return (
+    <aside className="flex h-full w-64 flex-col border-r border-zinc-200 bg-white">
+      {/* Logo */}
+      <div className="flex h-16 items-center gap-2 border-b border-zinc-200 px-6">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-zinc-900">
+          <span className="text-xs font-bold text-white">M</span>
+        </div>
+        <span className="text-lg font-semibold tracking-tight text-zinc-900">
+          MetalMAC
+        </span>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          const active = href === '/'
+            ? pathname === '/'
+            : pathname.startsWith(href);
+
+          const badge =
+            href === '/inventario' && alertas && alertas.length > 0
+              ? alertas.length
+              : null;
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                active
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900',
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{label}</span>
+              {badge !== null && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {badge}
+                </span>
+              )}
+              {active && <ChevronRight className="h-3 w-3 opacity-50" />}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer — usuario + cerrar sesión */}
+      <div className="border-t border-zinc-200 p-4 space-y-2">
+        {user && (
+          <p className="truncate text-xs text-zinc-500 px-1">{user.email}</p>
+        )}
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          <span>Cerrar sesión</span>
+        </button>
+        <p className="text-[10px] text-zinc-400 text-center">MetalMAC ERP · Sprint 6</p>
+      </div>
+    </aside>
+  );
+}
