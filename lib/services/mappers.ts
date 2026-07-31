@@ -7,7 +7,7 @@
 import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
-  GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion,
+  GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -22,6 +22,8 @@ type GastoProyectoRow = Database['public']['Tables']['gastos_proyecto']['Row'];
 type FacturaCompraRow = Database['public']['Tables']['facturas_compra']['Row'];
 type FacturaCompraLineaRow = Database['public']['Tables']['factura_compra_lineas']['Row'];
 type FacturaCompraRetencionRow = Database['public']['Tables']['factura_compra_retenciones']['Row'];
+type PedidoWooCommerceRow = Database['public']['Tables']['pedidos_woocommerce']['Row'];
+type LineaPedidoWooCommerceRow = Database['public']['Tables']['pedido_woocommerce_lineas']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -199,5 +201,40 @@ export function mapMovimientoRow(row: MovimientoRow): MovimientoInventario {
     notas: row.notas,
     usuarioId: row.usuario_id,
     fecha: row.fecha,
+  };
+}
+
+export function mapLineaPedidoWooCommerceRow(row: LineaPedidoWooCommerceRow): LineaPedidoWooCommerce {
+  return {
+    id: row.id,
+    pedidoId: row.pedido_id,
+    wcLineItemId: row.wc_line_item_id,
+    sku: row.sku,
+    nombreProducto: row.nombre_producto,
+    cantidad: Number(row.cantidad),
+    productoId: row.producto_id,
+    ordenProduccionId: row.orden_produccion_id,
+  };
+}
+
+export function mapPedidoWooCommerceRow(
+  row: PedidoWooCommerceRow,
+  lineas: LineaPedidoWooCommerceRow[] = [],
+): PedidoWooCommerce {
+  return {
+    id: row.id,
+    wcOrderId: row.wc_order_id,
+    wcStatus: row.wc_status,
+    numeroPedido: row.numero_pedido,
+    clienteNombre: row.cliente_nombre,
+    clienteEmail: row.cliente_email,
+    total: Number(row.total),
+    moneda: row.moneda,
+    estadoRevision: row.estado_revision,
+    notas: row.notas,
+    lineas: lineas.map(mapLineaPedidoWooCommerceRow),
+    recibidoEn: row.recibido_en,
+    procesadoEn: row.procesado_en,
+    procesadoPor: row.procesado_por,
   };
 }

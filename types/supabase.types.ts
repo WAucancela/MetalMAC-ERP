@@ -748,6 +748,112 @@ export type Database = {
           },
         ]
       }
+      pedido_woocommerce_lineas: {
+        Row: {
+          cantidad: number
+          id: string
+          nombre_producto: string
+          orden_produccion_id: string | null
+          pedido_id: string
+          producto_id: string | null
+          sku: string
+          wc_line_item_id: number
+        }
+        Insert: {
+          cantidad: number
+          id?: string
+          nombre_producto: string
+          orden_produccion_id?: string | null
+          pedido_id: string
+          producto_id?: string | null
+          sku?: string
+          wc_line_item_id: number
+        }
+        Update: {
+          cantidad?: number
+          id?: string
+          nombre_producto?: string
+          orden_produccion_id?: string | null
+          pedido_id?: string
+          producto_id?: string | null
+          sku?: string
+          wc_line_item_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedido_woocommerce_lineas_orden_produccion_id_fkey"
+            columns: ["orden_produccion_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_woocommerce_lineas_pedido_id_fkey"
+            columns: ["pedido_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_woocommerce"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedido_woocommerce_lineas_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pedidos_woocommerce: {
+        Row: {
+          cliente_email: string
+          cliente_nombre: string
+          estado_revision: Database["public"]["Enums"]["estado_revision_pedido"]
+          id: string
+          moneda: string
+          notas: string
+          numero_pedido: string
+          payload: Json
+          procesado_en: string | null
+          procesado_por: string | null
+          recibido_en: string
+          total: number
+          wc_order_id: number
+          wc_status: string
+        }
+        Insert: {
+          cliente_email?: string
+          cliente_nombre?: string
+          estado_revision?: Database["public"]["Enums"]["estado_revision_pedido"]
+          id?: string
+          moneda?: string
+          notas?: string
+          numero_pedido: string
+          payload: Json
+          procesado_en?: string | null
+          procesado_por?: string | null
+          recibido_en?: string
+          total?: number
+          wc_order_id: number
+          wc_status: string
+        }
+        Update: {
+          cliente_email?: string
+          cliente_nombre?: string
+          estado_revision?: Database["public"]["Enums"]["estado_revision_pedido"]
+          id?: string
+          moneda?: string
+          notas?: string
+          numero_pedido?: string
+          payload?: Json
+          procesado_en?: string | null
+          procesado_por?: string | null
+          recibido_en?: string
+          total?: number
+          wc_order_id?: number
+          wc_status?: string
+        }
+        Relationships: []
+      }
       perfiles: {
         Row: {
           creado_en: string
@@ -1071,6 +1177,42 @@ export type Database = {
         Args: { p_orden_id: string; p_usuario_id: string }
         Returns: undefined
       }
+      convertir_linea_pedido_woocommerce: {
+        Args: {
+          p_cantidad: number
+          p_fecha_entrega: string
+          p_linea_id: string
+          p_notas: string
+          p_pedido_id: string
+          p_producto_id: string
+          p_proyecto_id: string
+          p_usuario_id: string
+        }
+        Returns: {
+          actualizado_en: string
+          actualizado_por: string | null
+          cantidad: number
+          codigo: string
+          costo_estimado: number
+          costo_real: number | null
+          creado_en: string
+          creado_por: string
+          estado: Database["public"]["Enums"]["estado_orden_produccion"]
+          fecha_completada: string | null
+          fecha_entrega: string
+          fecha_inicio: string
+          id: string
+          notas: string
+          producto_id: string
+          proyecto_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "ordenes_produccion"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       crear_orden_produccion: {
         Args: {
           p_cantidad: number
@@ -1145,6 +1287,10 @@ export type Database = {
         Args: { p_orden_id: string; p_usuario_id: string }
         Returns: undefined
       }
+      reemplazar_lineas_pendientes_pedido_woocommerce: {
+        Args: { p_lineas: Json; p_pedido_id: string }
+        Returns: undefined
+      }
       registrar_movimiento_inventario: {
         Args: {
           p_cantidad: number
@@ -1195,6 +1341,11 @@ export type Database = {
         | "PAUSADO"
         | "COMPLETADO"
         | "CANCELADO"
+      estado_revision_pedido:
+        | "PENDIENTE"
+        | "EN_REVISION"
+        | "CONVERTIDO"
+        | "RECHAZADO"
       rol_usuario: "GERENTE" | "BODEGUERO" | "PRODUCCION" | "CONTABILIDAD"
       tipo_contribuyente: "PERSONA_NATURAL" | "SOCIEDAD" | "RISE"
       tipo_documento: "FACTURA_COMPRA" | "ORDEN_PRODUCCION" | "AJUSTE_MANUAL"

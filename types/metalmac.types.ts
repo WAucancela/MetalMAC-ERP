@@ -50,6 +50,12 @@ export type EstadoOrdenProduccion =
 
 export type TipoOperacion = 'LASER' | 'SOLDADURA' | 'DOBLADO' | 'ENSAMBLE';
 
+export type EstadoRevisionPedido =
+  | 'PENDIENTE'
+  | 'EN_REVISION'
+  | 'CONVERTIDO'
+  | 'RECHAZADO';
+
 export type EstadoProyecto = 'PLANIFICACION' | 'ACTIVO' | 'PAUSADO' | 'COMPLETADO' | 'CANCELADO';
 
 export type CategoriaGasto =
@@ -493,4 +499,36 @@ export interface GastoProyecto {
   comprobante: string | null; // URL en Storage
   creadoEn: string;
   creadoPor: string;
+}
+
+// ─────────────────────────────────────────────
+// Pedidos WooCommerce (tallermac.com) — bandeja de revisión
+// ─────────────────────────────────────────────
+
+export interface LineaPedidoWooCommerce {
+  id: string;
+  pedidoId: string;
+  wcLineItemId: number;
+  sku: string;
+  nombreProducto: string;
+  cantidad: number;
+  productoId: string | null;         // resuelto por SKU al ingerir; editable en revisión
+  ordenProduccionId: string | null;  // se fija al convertir la línea en OP
+}
+
+export interface PedidoWooCommerce {
+  id: string;
+  wcOrderId: number;
+  wcStatus: string;
+  numeroPedido: string;
+  clienteNombre: string;
+  clienteEmail: string;
+  total: number;
+  moneda: string;
+  estadoRevision: EstadoRevisionPedido;
+  notas: string;
+  lineas: LineaPedidoWooCommerce[];
+  recibidoEn: string;
+  procesadoEn: string | null;
+  procesadoPor: string | null;
 }

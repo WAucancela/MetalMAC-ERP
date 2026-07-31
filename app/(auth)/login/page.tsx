@@ -1,13 +1,12 @@
 /**
- * /login — Autenticación con Firebase Auth (email/password).
+ * /login — Autenticación con Supabase Auth (email/password).
  * Redirige a /inventario tras login exitoso.
  */
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,19 +23,21 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/inventario');
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? '';
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (signInError) {
       setError(
-        code === 'auth/invalid-credential'
+        signInError.message.includes('Invalid login credentials')
           ? 'Correo o contraseña incorrectos.'
           : 'Error al iniciar sesión. Intenta de nuevo.',
       );
-    } finally {
       setLoading(false);
+      return;
     }
+
+    router.push('/inventario');
+    router.refresh();
   };
 
   return (

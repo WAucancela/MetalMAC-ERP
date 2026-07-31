@@ -3,33 +3,53 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Package, Truck, FileText, Factory, FolderOpen,
+  Package, Truck, FileText, Factory, FolderOpen, ShoppingCart,
   LayoutDashboard, ChevronRight, Boxes, LogOut,
 } from 'lucide-react';
 import { useAlertasStockBajo } from '@/hooks/useStock';
+import { usePedidosWooCommerce } from '@/hooks/usePedidosWooCommerce';
 import { useAuth } from '@/hooks/useAuth';
 
-const NAV_ITEMS = [
+interface NavItem {
+  href:  string;
+  label: string;
+  icon:  LucideIcon;
+  /** Si se define, el ítem sólo se muestra a estos roles (mismo check que la API correspondiente). */
+  roles?: readonly string[];
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: '/',                             label: 'Dashboard',        icon: LayoutDashboard },
   { href: '/inventario',                   label: 'Inventario',       icon: Package },
   { href: '/productos',                    label: 'Productos',        icon: Boxes },
   { href: '/produccion',                   label: 'Producción',       icon: Factory },
+  { href: '/pedidos-woocommerce',          label: 'Pedidos Web',      icon: ShoppingCart, roles: ['GERENTE', 'PRODUCCION'] },
   { href: '/proveedores',                  label: 'Proveedores',      icon: Truck },
   { href: '/contabilidad/facturas-compra', label: 'Facturas Compra',  icon: FileText },
   { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
-] as const;
+];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
   const { data: alertas } = useAlertasStockBajo();
-  const { user, signOut } = useAuth();
+  const { user, rol, signOut } = useAuth();
+  // Sólo GERENTE/PRODUCCION pueden ver /pedidos-woocommerce (mismo check que la API) —
+  // sin esto, cualquier otro rol dispararía un 403 en cada carga de página.
+  const puedeVerPedidos = rol === 'GERENTE' || rol === 'PRODUCCION';
+  const { data: pedidosPendientes } = usePedidosWooCommerce({
+    estadoRevision: 'PENDIENTE',
+    enabled: puedeVerPedidos,
+  });
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/login');
   };
+
+  const navItems = NAV_ITEMS.filter((item) => !item.roles || item.roles.includes(rol ?? ''));
 
   return (
     <aside className="flex h-full w-64 flex-col border-r border-zinc-200 bg-white">
@@ -45,7 +65,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const active = href === '/'
             ? pathname === '/'
             : pathname.startsWith(href);
@@ -53,6 +73,8 @@ export function Sidebar() {
           const badge =
             href === '/inventario' && alertas && alertas.length > 0
               ? alertas.length
+              : href === '/pedidos-woocommerce' && pedidosPendientes && pedidosPendientes.length > 0
+              ? pedidosPendientes.length
               : null;
 
           return (
