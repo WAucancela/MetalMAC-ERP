@@ -206,11 +206,11 @@ export default function DashboardPage() {
               {contabilidad.facturasUltimas5.map((f) => (
                 <div key={f.id} className="flex items-center justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{f.razonSocialEmisor}</p>
+                    <p className="text-sm font-medium truncate">{f.razonSocialProveedor ?? '—'}</p>
                     <p className="text-xs text-muted-foreground font-mono">{f.numeroFactura}</p>
                   </div>
                   <span className="text-sm font-semibold tabular-nums ml-3 shrink-0">
-                    ${f.importeTotal?.toFixed(2)}
+                    ${f.total.toFixed(2)}
                   </span>
                 </div>
               ))}

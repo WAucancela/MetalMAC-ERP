@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // firebase-admin sólo se usa en server components y API Routes
-  experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
-  },
-
-  // Headers de seguridad adicionales (complementa vercel.json)
+  // Headers de seguridad
   async headers() {
     return [
       {
@@ -20,16 +15,14 @@ const nextConfig = {
     ];
   },
 
-  // Imágenes — dominios de Firebase Storage
+  // Imágenes — Supabase Storage
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'firebasestorage.googleapis.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'storage.googleapis.com',
+        // El hostname real depende de tu proyecto Supabase:
+        // formato: <project-ref>.supabase.co
+        hostname: '*.supabase.co',
       },
     ],
   },

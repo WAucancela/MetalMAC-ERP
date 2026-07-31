@@ -67,6 +67,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (parsed.data.descripcion !== undefined)  update.descripcion = parsed.data.descripcion;
     if (parsed.data.cliente !== undefined)      update.cliente = parsed.data.cliente;
     if (parsed.data.presupuesto !== undefined)  update.presupuesto = parsed.data.presupuesto;
+    if (parsed.data.costoEstimado !== undefined) update.costo_estimado = parsed.data.costoEstimado;
     if (parsed.data.estado !== undefined)       update.estado = parsed.data.estado;
     if (parsed.data.fechaInicio !== undefined)  update.fecha_inicio = parsed.data.fechaInicio;
     if ('fechaFin' in parsed.data)               update.fecha_fin = parsed.data.fechaFin ?? null;

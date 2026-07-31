@@ -9,6 +9,7 @@ export const ProyectoSchema = z.object({
   descripcion: z.string().max(1000).default(''),
   cliente:     z.string().min(1).max(200),
   presupuesto: z.number().positive('El presupuesto debe ser mayor a 0'),
+  costoEstimado: z.number().min(0, 'El costo estimado no puede ser negativo').default(0),
   estado:      z.enum(['PLANIFICACION', 'ACTIVO', 'PAUSADO', 'COMPLETADO', 'CANCELADO']).default('PLANIFICACION'),
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato ISO: YYYY-MM-DD'),
   fechaFin:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),

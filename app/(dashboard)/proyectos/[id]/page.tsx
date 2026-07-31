@@ -117,6 +117,7 @@ export default function ProyectoDetallePage() {
               descripcion: proyecto.descripcion,
               cliente: proyecto.cliente,
               presupuesto: proyecto.presupuesto,
+              costoEstimado: proyecto.costoEstimado,
               estado: proyecto.estado,
             }}
             onSuccess={() => setEditMode(false)}

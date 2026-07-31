@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   const parsed = ProyectoSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
 
-  const { nombre, descripcion, cliente, presupuesto, estado, fechaInicio, fechaFin } = parsed.data;
+  const { nombre, descripcion, cliente, presupuesto, costoEstimado, estado, fechaInicio, fechaFin } = parsed.data;
 
   try {
     // Contador anual + insert en una sola transacción implícita (RPC). El estado
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       p_descripcion: descripcion,
       p_cliente: cliente,
       p_presupuesto: presupuesto,
-      p_costo_estimado: 0,
+      p_costo_estimado: costoEstimado,
       p_fecha_inicio: fechaInicio,
       p_responsable_id: user.uid,
       p_usuario_id: user.uid,

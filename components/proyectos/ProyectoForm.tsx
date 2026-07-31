@@ -32,6 +32,7 @@ export function ProyectoForm({ mode = 'create', proyectoId, defaultValues, onSuc
       estado: 'PLANIFICACION',
       ordenesProduccion: [],
       descripcion: '',
+      costoEstimado: 0,
       fechaFin: null,
       ...defaultValues,
     },
@@ -91,16 +92,27 @@ export function ProyectoForm({ mode = 'create', proyectoId, defaultValues, onSuc
         </div>
 
         <div className="space-y-1.5">
-          <Label>Estado</Label>
-          <select
-            {...register('estado')}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            {ESTADOS.map((e) => (
-              <option key={e} value={e}>{e.replace('_', ' ')}</option>
-            ))}
-          </select>
+          <Label>Costo estimado (USD)</Label>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            {...register('costoEstimado', { valueAsNumber: true })}
+          />
+          {errors.costoEstimado && <p className="text-xs text-red-500">{errors.costoEstimado.message}</p>}
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Estado</Label>
+        <select
+          {...register('estado')}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          {ESTADOS.map((e) => (
+            <option key={e} value={e}>{e.replace('_', ' ')}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">

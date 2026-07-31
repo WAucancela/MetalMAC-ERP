@@ -23,8 +23,8 @@ export interface DashboardKPIs {
       facturasUltimas5: Array<{
         id: string;
         numeroFactura: string;
-        razonSocialEmisor: string;
-        importeTotal: number;
+        razonSocialProveedor: string | null;
+        total: number;
       }>;
     };
     proyectos: {
