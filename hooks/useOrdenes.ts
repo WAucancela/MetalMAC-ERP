@@ -18,7 +18,7 @@ export interface OrdenResumen {
   productoId: string;
   cantidad: number;
   estado: 'BORRADOR' | 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA';
-  fechaEntrega: { seconds: number; nanoseconds: number };
+  fechaEntrega: string;
   costoEstimado: number;
   costoReal: number | null;
   proyectoId?: string | null;
