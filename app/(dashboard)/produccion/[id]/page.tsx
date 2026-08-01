@@ -24,11 +24,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EstadoOrdenBadge } from '@/components/produccion/EstadoOrdenBadge';
 import { useOrden, useActualizarEstadoOrden } from '@/hooks/useOrdenes';
 
-function firestoreToDate(ts: any): Date | null {
+function parseDate(ts: string | null | undefined): Date | null {
   if (!ts) return null;
-  if (typeof ts === 'string') return new Date(ts);
-  if (ts.seconds) return new Date(ts.seconds * 1000);
-  return null;
+  return new Date(ts);
 }
 
 export default function OrdenDetallePage() {
@@ -62,8 +60,8 @@ export default function OrdenDetallePage() {
   if (!data) return <p className="text-sm text-muted-foreground">Orden no encontrada.</p>;
 
   const orden = data;
-  const fechaEntrega  = firestoreToDate(orden.fechaEntrega);
-  const fechaCreacion = firestoreToDate(orden.creadoEn);
+  const fechaEntrega  = parseDate(orden.fechaEntrega);
+  const fechaCreacion = parseDate(orden.creadoEn);
   const materialesReservados: any[] = orden.materialesReservados ?? [];
 
   return (

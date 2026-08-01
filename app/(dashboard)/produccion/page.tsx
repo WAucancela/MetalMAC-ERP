@@ -25,10 +25,9 @@ const ESTADOS: Array<{ value: OrdenResumen['estado'] | ''; label: string }> = [
   { value: 'CANCELADA',  label: 'Canceladas' },
 ];
 
-function firestoreToDate(ts: { seconds: number; nanoseconds: number } | string | null): Date | null {
+function parseDate(ts: string | null | undefined): Date | null {
   if (!ts) return null;
-  if (typeof ts === 'string') return new Date(ts);
-  return new Date(ts.seconds * 1000);
+  return new Date(ts);
 }
 
 export default function ProduccionPage() {
@@ -100,7 +99,7 @@ export default function ProduccionPage() {
           </TableHeader>
           <TableBody>
             {ordenes.map((op) => {
-              const fecha = firestoreToDate(op.fechaEntrega);
+              const fecha = parseDate(op.fechaEntrega);
               return (
                 <TableRow key={op.id} className="cursor-pointer hover:bg-muted/50">
                   <TableCell>

@@ -8,6 +8,7 @@ import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
+  FacturaVenta, LineaFacturaVenta,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -24,6 +25,8 @@ type FacturaCompraLineaRow = Database['public']['Tables']['factura_compra_lineas
 type FacturaCompraRetencionRow = Database['public']['Tables']['factura_compra_retenciones']['Row'];
 type PedidoWooCommerceRow = Database['public']['Tables']['pedidos_woocommerce']['Row'];
 type LineaPedidoWooCommerceRow = Database['public']['Tables']['pedido_woocommerce_lineas']['Row'];
+type FacturaVentaRow = Database['public']['Tables']['facturas_venta']['Row'];
+type FacturaVentaLineaRow = Database['public']['Tables']['factura_venta_lineas']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -183,6 +186,38 @@ export function mapFacturaCompraRow(
       valor: Number(r.valor),
     })),
     creadoEn: row.creado_en,
+  };
+}
+
+export function mapFacturaVentaRow(
+  row: FacturaVentaRow,
+  lineas: FacturaVentaLineaRow[] = [],
+): FacturaVenta {
+  return {
+    id: row.id,
+    proyectoId: row.proyecto_id,
+    clienteNombre: row.cliente_nombre,
+    clienteRuc: row.cliente_ruc,
+    clienteEmail: row.cliente_email,
+    claveAcceso: row.clave_acceso,
+    numeroFactura: row.numero_factura,
+    establecimiento: row.establecimiento,
+    puntoEmision: row.punto_emision,
+    secuencial: row.secuencial,
+    fechaEmision: row.fecha_emision,
+    subtotalSinIva: Number(row.subtotal_sin_iva),
+    iva: Number(row.iva),
+    total: Number(row.total),
+    estado: row.estado,
+    lineas: [...lineas].sort((a, b) => a.orden - b.orden).map((l): LineaFacturaVenta => ({
+      descripcion: l.descripcion,
+      cantidad: Number(l.cantidad),
+      precioUnitario: Number(l.precio_unitario),
+      subtotal: Number(l.subtotal),
+      ordenProduccionId: l.orden_produccion_id,
+    })),
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
   };
 }
 

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { ChevronLeft, Plus, Pencil, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, Plus, Pencil, XCircle, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
 
 import { Button }   from '@/components/ui/button';
 import { Badge }    from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { ResumenPresupuesto } from '@/components/proyectos/ResumenPresupuesto';
 import { GastoTable }        from '@/components/proyectos/GastoTable';
 import { GastoForm }         from '@/components/proyectos/GastoForm';
 import { ProyectoForm }      from '@/components/proyectos/ProyectoForm';
+import { GenerarFacturaVentaForm } from '@/components/proyectos/GenerarFacturaVentaForm';
 
 import { useProyecto, useEliminarProyecto } from '@/hooks/useProyectos';
 
@@ -31,8 +32,9 @@ export default function ProyectoDetallePage() {
   const { data, isLoading } = useProyecto(id);
   const eliminar  = useEliminarProyecto();
 
-  const [showGastoForm, setShowGastoForm] = useState(false);
-  const [editMode, setEditMode]           = useState(false);
+  const [showGastoForm, setShowGastoForm]     = useState(false);
+  const [showFacturaForm, setShowFacturaForm] = useState(false);
+  const [editMode, setEditMode]               = useState(false);
 
   if (isLoading) {
     return (
@@ -87,6 +89,14 @@ export default function ProyectoDetallePage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowFacturaForm(!showFacturaForm)}
+          >
+            <Receipt className="mr-1.5 h-3.5 w-3.5" />
+            Generar factura de venta
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setEditMode(!editMode)}
           >
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
@@ -134,6 +144,21 @@ export default function ProyectoDetallePage() {
           costoEstimado={proyecto.costoEstimado}
         />
       </div>
+
+      {/* Factura de venta */}
+      {showFacturaForm && (
+        <div className="rounded-lg border p-6 space-y-4">
+          <h2 className="text-sm font-semibold">Generar factura de venta</h2>
+          <GenerarFacturaVentaForm
+            proyectoId={id}
+            clienteNombreSugerido={proyecto.cliente}
+            onSuccess={(facturaId) => {
+              setShowFacturaForm(false);
+              router.push(`/contabilidad/facturas-venta/${facturaId}`);
+            }}
+          />
+        </div>
+      )}
 
       {/* OPs vinculadas */}
       {ordenesProduccion.length > 0 && (

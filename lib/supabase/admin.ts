@@ -2,7 +2,7 @@
  * lib/supabase/admin.ts — cliente con la service_role key.
  *
  * Server-only. BYPASSRLS — nunca importar en componentes/archivos de cliente
- * (equivalente a lib/firebase-admin.ts en la versión Firebase).
+ * Server-only. Bypasea RLS — nunca importar en componentes de cliente.
  */
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase.types';

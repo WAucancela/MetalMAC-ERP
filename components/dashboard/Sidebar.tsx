@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Package, Truck, FileText, Factory, FolderOpen, ShoppingCart,
+  Package, Truck, FileText, Factory, FolderOpen, ShoppingCart, Receipt,
   LayoutDashboard, ChevronRight, Boxes, LogOut,
 } from 'lucide-react';
 import { useAlertasStockBajo } from '@/hooks/useStock';
@@ -28,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/pedidos-woocommerce',          label: 'Pedidos Web',      icon: ShoppingCart, roles: ['GERENTE', 'PRODUCCION'] },
   { href: '/proveedores',                  label: 'Proveedores',      icon: Truck },
   { href: '/contabilidad/facturas-compra', label: 'Facturas Compra',  icon: FileText },
+  { href: '/contabilidad/facturas-venta',  label: 'Facturas Venta',   icon: Receipt },
   { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
 ];
 

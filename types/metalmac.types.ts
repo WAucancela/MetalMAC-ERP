@@ -299,10 +299,15 @@ export interface LineaFacturaVenta {
 
 export interface FacturaVenta {
   id: string;
+  proyectoId: string | null;
   clienteNombre: string;
   clienteRuc: string;
-  claveAcceso: string;
+  clienteEmail: string;
+  claveAcceso: string | null;      // se llena recién al pasar a EMITIDA (Fase 1: pegado a mano)
   numeroFactura: string;
+  establecimiento: string;
+  puntoEmision: string;
+  secuencial: number | null;       // asignado solo en el momento real de emisión (Fase 2)
   fechaEmision: string;
   subtotalSinIva: number;
   iva: number;
@@ -310,6 +315,7 @@ export interface FacturaVenta {
   estado: EstadoFacturaVenta;
   lineas: LineaFacturaVenta[];
   creadoEn: string;
+  creadoPor: string | null;
 }
 
 // ─────────────────────────────────────────────

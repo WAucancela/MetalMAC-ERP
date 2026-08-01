@@ -404,45 +404,71 @@ export type Database = {
       }
       facturas_venta: {
         Row: {
-          clave_acceso: string
+          clave_acceso: string | null
+          cliente_email: string
           cliente_nombre: string
           cliente_ruc: string
           creado_en: string
+          creado_por: string | null
+          establecimiento: string
           estado: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
           id: string
           iva: number
           numero_factura: string
+          proyecto_id: string | null
+          punto_emision: string
+          secuencial: number | null
           subtotal_sin_iva: number
           total: number
         }
         Insert: {
-          clave_acceso: string
+          clave_acceso?: string | null
+          cliente_email?: string
           cliente_nombre: string
           cliente_ruc: string
           creado_en?: string
+          creado_por?: string | null
+          establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
           id?: string
           iva: number
           numero_factura: string
+          proyecto_id?: string | null
+          punto_emision?: string
+          secuencial?: number | null
           subtotal_sin_iva: number
           total: number
         }
         Update: {
-          clave_acceso?: string
+          clave_acceso?: string | null
+          cliente_email?: string
           cliente_nombre?: string
           cliente_ruc?: string
           creado_en?: string
+          creado_por?: string | null
+          establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision?: string
           id?: string
           iva?: number
           numero_factura?: string
+          proyecto_id?: string | null
+          punto_emision?: string
+          secuencial?: number | null
           subtotal_sin_iva?: number
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "facturas_venta_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gastos_proyecto: {
         Row: {
