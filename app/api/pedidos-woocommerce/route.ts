@@ -68,7 +68,12 @@ export async function GET(request: Request) {
         estadoRevision,
         rawRowCount: rows.length,
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        serviceKeyLen: (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').length,
+        serviceKeyFingerprint: require('crypto')
+          .createHash('sha256')
+          .update(process.env.SUPABASE_SERVICE_ROLE_KEY ?? '')
+          .digest('hex')
+          .slice(0, 16),
       },
     });
   } catch (e) {
