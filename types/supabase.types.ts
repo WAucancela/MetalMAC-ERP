@@ -410,6 +410,7 @@ export type Database = {
           cliente_ruc: string
           creado_en: string
           creado_por: string | null
+          email_enviado_en: string | null
           establecimiento: string
           estado: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
@@ -418,9 +419,13 @@ export type Database = {
           numero_factura: string
           proyecto_id: string | null
           punto_emision: string
+          ride_url: string | null
           secuencial: number | null
+          sri_estado: Database["public"]["Enums"]["sri_estado_tramite"] | null
+          sri_mensaje: string
           subtotal_sin_iva: number
           total: number
+          xml_firmado_url: string | null
         }
         Insert: {
           clave_acceso?: string | null
@@ -429,6 +434,7 @@ export type Database = {
           cliente_ruc: string
           creado_en?: string
           creado_por?: string | null
+          email_enviado_en?: string | null
           establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
@@ -437,9 +443,13 @@ export type Database = {
           numero_factura: string
           proyecto_id?: string | null
           punto_emision?: string
+          ride_url?: string | null
           secuencial?: number | null
+          sri_estado?: Database["public"]["Enums"]["sri_estado_tramite"] | null
+          sri_mensaje?: string
           subtotal_sin_iva: number
           total: number
+          xml_firmado_url?: string | null
         }
         Update: {
           clave_acceso?: string | null
@@ -448,6 +458,7 @@ export type Database = {
           cliente_ruc?: string
           creado_en?: string
           creado_por?: string | null
+          email_enviado_en?: string | null
           establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision?: string
@@ -456,9 +467,13 @@ export type Database = {
           numero_factura?: string
           proyecto_id?: string | null
           punto_emision?: string
+          ride_url?: string | null
           secuencial?: number | null
+          sri_estado?: Database["public"]["Enums"]["sri_estado_tramite"] | null
+          sri_mensaje?: string
           subtotal_sin_iva?: number
           total?: number
+          xml_firmado_url?: string | null
         }
         Relationships: [
           {
@@ -1344,6 +1359,10 @@ export type Database = {
         Args: { p_anio: number; p_prefijo: string }
         Returns: number
       }
+      siguiente_secuencial_factura_venta: {
+        Args: { p_establecimiento: string; p_punto_emision: string }
+        Returns: number
+      }
     }
     Enums: {
       categoria_gasto:
@@ -1373,6 +1392,12 @@ export type Database = {
         | "CONVERTIDO"
         | "RECHAZADO"
       rol_usuario: "GERENTE" | "BODEGUERO" | "PRODUCCION" | "CONTABILIDAD"
+      sri_estado_tramite:
+        | "PENDIENTE_ENVIO"
+        | "RECIBIDO"
+        | "AUTORIZADO"
+        | "RECHAZADO"
+        | "DEVUELTO"
       tipo_contribuyente: "PERSONA_NATURAL" | "SOCIEDAD" | "RISE"
       tipo_documento: "FACTURA_COMPRA" | "ORDEN_PRODUCCION" | "AJUSTE_MANUAL"
       tipo_material: "PLANCHA" | "TUBO" | "PERFIL" | "VARILLA" | "CONSUMIBLE"
@@ -1544,6 +1569,13 @@ export const Constants = {
         "CANCELADO",
       ],
       rol_usuario: ["GERENTE", "BODEGUERO", "PRODUCCION", "CONTABILIDAD"],
+      sri_estado_tramite: [
+        "PENDIENTE_ENVIO",
+        "RECIBIDO",
+        "AUTORIZADO",
+        "RECHAZADO",
+        "DEVUELTO",
+      ],
       tipo_contribuyente: ["PERSONA_NATURAL", "SOCIEDAD", "RISE"],
       tipo_documento: ["FACTURA_COMPRA", "ORDEN_PRODUCCION", "AJUSTE_MANUAL"],
       tipo_material: ["PLANCHA", "TUBO", "PERFIL", "VARILLA", "CONSUMIBLE"],

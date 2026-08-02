@@ -297,17 +297,19 @@ export interface LineaFacturaVenta {
   ordenProduccionId: string | null;
 }
 
+export type SriEstadoTramite = 'PENDIENTE_ENVIO' | 'RECIBIDO' | 'AUTORIZADO' | 'RECHAZADO' | 'DEVUELTO';
+
 export interface FacturaVenta {
   id: string;
   proyectoId: string | null;
   clienteNombre: string;
   clienteRuc: string;
   clienteEmail: string;
-  claveAcceso: string | null;      // se llena recién al pasar a EMITIDA (Fase 1: pegado a mano)
+  claveAcceso: string | null;      // se llena al pasar a EMITIDA (a mano en Fase 1, o automático en Fase 2)
   numeroFactura: string;
   establecimiento: string;
   puntoEmision: string;
-  secuencial: number | null;       // asignado solo en el momento real de emisión (Fase 2)
+  secuencial: number | null;       // asignado solo en el momento real de emisión
   fechaEmision: string;
   subtotalSinIva: number;
   iva: number;
@@ -316,6 +318,12 @@ export interface FacturaVenta {
   lineas: LineaFacturaVenta[];
   creadoEn: string;
   creadoPor: string | null;
+  // Fase 2 — trámite electrónico ante el SRI
+  xmlFirmadoUrl: string | null;
+  rideUrl: string | null;
+  sriEstado: SriEstadoTramite | null;
+  sriMensaje: string;
+  emailEnviadoEn: string | null;
 }
 
 // ─────────────────────────────────────────────

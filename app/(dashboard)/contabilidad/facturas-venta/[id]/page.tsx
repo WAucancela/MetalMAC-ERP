@@ -5,12 +5,12 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, XCircle } from 'lucide-react';
+import { ArrowLeft, XCircle, Zap, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-import { useFacturaVenta, useAnularFacturaVenta } from '@/hooks/useFacturasVenta';
+import { useFacturaVenta, useAnularFacturaVenta, useEmitirFacturaVenta } from '@/hooks/useFacturasVenta';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,12 +36,29 @@ export default function FacturaVentaDetallePage() {
 
   const { data: factura, isLoading, isError } = useFacturaVenta(id);
   const { mutateAsync: anular, isPending: anulando } = useAnularFacturaVenta();
+  const { mutateAsync: emitir, isPending: emitiendo } = useEmitirFacturaVenta(id);
 
   const handleAnular = async () => {
     if (!confirm('¿Anular esta factura de venta?')) return;
     try {
       await anular(id);
       toast.success('Factura anulada');
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  };
+
+  const handleEmitir = async () => {
+    if (!confirm('¿Emitir esta factura electrónicamente ante el SRI? Esto genera y firma el XML, lo envía, y espera la autorización — no se puede deshacer.')) return;
+    try {
+      const resultado = await emitir();
+      if (resultado.sriEstado === 'EN_PROCESO') {
+        toast.info(resultado.mensaje ?? 'El SRI todavía no autorizó el comprobante — volvé a intentar en unos minutos.');
+        return;
+      }
+      const ambienteTexto = resultado.ambiente === 'PRUEBAS' ? ' (ambiente de pruebas)' : '';
+      const emailTexto = resultado.emailEnviado ? ' y se envió por email al cliente' : '';
+      toast.success(`Factura ${resultado.numeroFactura} autorizada por el SRI${emailTexto}${ambienteTexto}`);
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -99,7 +116,14 @@ export default function FacturaVentaDetallePage() {
         {/* Acciones */}
         <div className="flex items-start gap-2">
           {factura.estado === 'BORRADOR' && (
-            <MarcarEmitidaForm facturaId={id} />
+            <>
+              <Button size="sm" onClick={handleEmitir} disabled={emitiendo}>
+                {emitiendo
+                  ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Emitiendo…</>
+                  : <><Zap className="mr-1.5 h-4 w-4" /> Emitir electrónicamente</>}
+              </Button>
+              <MarcarEmitidaForm facturaId={id} />
+            </>
           )}
           {factura.estado !== 'ANULADA' && (
             <Button size="sm" variant="destructive" onClick={handleAnular} disabled={anulando}>
@@ -131,7 +155,16 @@ export default function FacturaVentaDetallePage() {
                 {factura.claveAcceso ? `${factura.claveAcceso.slice(0, 12)}…` : '—'}
               </dd>
             </div>
+            {factura.sriEstado && (
+              <div className="flex justify-between">
+                <dt className="text-zinc-500">Estado SRI</dt>
+                <dd className="font-medium">{factura.sriEstado}</dd>
+              </div>
+            )}
           </dl>
+          {factura.sriMensaje && (
+            <p className="text-xs text-red-600 bg-red-50 rounded-md p-2 mt-2">{factura.sriMensaje}</p>
+          )}
         </div>
 
         <div className="rounded-lg border border-zinc-200 bg-white p-5 space-y-3">

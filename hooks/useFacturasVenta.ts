@@ -108,6 +108,42 @@ export function useAnularFacturaVenta() {
   });
 }
 
+export interface EmitirFacturaVentaResult {
+  ok: boolean;
+  claveAcceso?: string;
+  numeroFactura?: string;
+  numeroAutorizacion?: string | null;
+  emailEnviado?: boolean;
+  ambiente?: 'PRUEBAS' | 'PRODUCCION';
+  sriEstado?: string;
+  mensaje?: string;
+}
+
+/** Fase 2: emisión electrónica real ante el SRI (firma + envío + autorización + RIDE + email). */
+export function useEmitirFacturaVenta(id: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<EmitirFacturaVentaResult> => {
+      const res = await fetch(`${BASE}/${id}/emitir`, {
+        method: 'POST',
+        headers: authHeaders(token ?? ''),
+      });
+      const json = await res.json();
+      if (!res.ok && res.status !== 202) {
+        const detalles = Array.isArray(json.detalles) ? `: ${json.detalles.join(' | ')}` : '';
+        throw new Error((json.error ?? `HTTP ${res.status}`) + detalles);
+      }
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['facturas-venta'] });
+      qc.invalidateQueries({ queryKey: ['facturas-venta', id] });
+    },
+  });
+}
+
 export function useMarcarEmitidaFacturaVenta(id: string) {
   const { token } = useAuth();
   const qc = useQueryClient();

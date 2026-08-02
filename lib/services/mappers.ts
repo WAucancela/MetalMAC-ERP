@@ -218,6 +218,11 @@ export function mapFacturaVentaRow(
     })),
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
+    xmlFirmadoUrl: row.xml_firmado_url,
+    rideUrl: row.ride_url,
+    sriEstado: row.sri_estado,
+    sriMensaje: row.sri_mensaje,
+    emailEnviadoEn: row.email_enviado_en,
   };
 }
 
