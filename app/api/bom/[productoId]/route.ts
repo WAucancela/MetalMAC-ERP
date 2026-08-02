@@ -9,6 +9,7 @@ import Decimal from 'decimal.js';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { BOMSchema } from '@/lib/validations/produccion.schema';
+import { calcularCostoBOM } from '@/lib/services/bom.service';
 
 // Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
 export const dynamic = 'force-dynamic';
@@ -107,12 +108,32 @@ export async function PUT(request: Request, { params }: { params: { productoId: 
     cantidadConMerma: new Decimal(l.cantidadBase).times(l.factorMerma).toDecimalPlaces(6).toNumber(),
   }));
 
-  // Calcular costos de operaciones
-  const costoOperaciones = parsed.data.operaciones.reduce((acc, op) => {
-    return acc + new Decimal(op.minutos).times(op.costoPorMinuto).toNumber();
-  }, 0);
-
   try {
+    // Costo por unidad del producto (unidades=1) — mismo cálculo que ya usa
+    // calcularCostoProducto al iniciar una OP, reutilizado acá para que el BOM
+    // quede con su costo real persistido en vez de 0 (BOMTable.tsx lo recalculaba
+    // client-side cada render porque este valor nunca se guardaba).
+    const materialIds = [...new Set(parsed.data.lineas.map((l) => l.materialId))];
+    const materialesPorId: Record<string, { nombre: string; costoUnitario: number }> = {};
+    if (materialIds.length > 0) {
+      const { data: materiales, error: matError } = await supabaseAdmin
+        .from('materiales')
+        .select('id, nombre, costo_unitario')
+        .in('id', materialIds);
+      if (matError) throw matError;
+      for (const m of materiales ?? []) {
+        materialesPorId[m.id] = { nombre: m.nombre, costoUnitario: Number(m.costo_unitario) };
+      }
+    }
+
+    const costoBOM = calcularCostoBOM(
+      {
+        lineas: lineasConMerma,
+        operaciones: parsed.data.operaciones.map((op) => ({ ...op, costoTotal: 0 })),
+      },
+      materialesPorId,
+      1,
+    );
     // Versión: lee la actual (si existe) e incrementa — no es una ruta de alta
     // concurrencia (un solo taller, escrituras administrativas), así que no
     // hace falta una función RPC para esto (a diferencia de las 4 críticas de stock).
@@ -130,9 +151,9 @@ export async function PUT(request: Request, { params }: { params: { productoId: 
     const { error: upsertError } = await supabaseAdmin.from('boms').upsert({
       producto_id: params.productoId,
       version: nuevaVersion,
-      costo_materiales: 0, // se recalcula en el GET ?costo=N
-      costo_operaciones: new Decimal(costoOperaciones).toDecimalPlaces(4).toNumber(),
-      costo_total: 0,
+      costo_materiales: costoBOM.costoMateriales,
+      costo_operaciones: costoBOM.costoOperaciones,
+      costo_total: costoBOM.costoTotal,
       actualizado_en: new Date().toISOString(),
     });
     if (upsertError) throw upsertError;
