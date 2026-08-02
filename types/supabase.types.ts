@@ -199,6 +199,36 @@ export type Database = {
           },
         ]
       }
+      certificados_firma: {
+        Row: {
+          activo: boolean
+          id: string
+          password_cifrada: string
+          storage_path: string
+          subido_en: string
+          subido_por: string
+          vigencia_hasta: string | null
+        }
+        Insert: {
+          activo?: boolean
+          id?: string
+          password_cifrada: string
+          storage_path: string
+          subido_en?: string
+          subido_por: string
+          vigencia_hasta?: string | null
+        }
+        Update: {
+          activo?: boolean
+          id?: string
+          password_cifrada?: string
+          storage_path?: string
+          subido_en?: string
+          subido_por?: string
+          vigencia_hasta?: string | null
+        }
+        Relationships: []
+      }
       contadores_anuales: {
         Row: {
           anio: number

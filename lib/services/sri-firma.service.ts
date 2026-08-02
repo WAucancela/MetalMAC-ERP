@@ -42,6 +42,7 @@ function binaryStringABuffer(binario: string): ArrayBuffer {
 export interface CertificadoExtraido {
   claveCryptoKey: CryptoKey;
   certificadoBase64Der: string;
+  vigenciaHasta: Date;
 }
 
 /**
@@ -89,7 +90,7 @@ export async function extraerCertificado(
   const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(certificado)).getBytes();
   const certificadoBase64Der = forge.util.encode64(certDer);
 
-  return { claveCryptoKey, certificadoBase64Der };
+  return { claveCryptoKey, certificadoBase64Der, vigenciaHasta: certificado.validity.notAfter };
 }
 
 /**

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import {
   Package, Truck, FileText, Factory, FolderOpen, ShoppingCart, Receipt,
-  LayoutDashboard, ChevronRight, Boxes, LogOut,
+  LayoutDashboard, ChevronRight, Boxes, LogOut, Settings,
 } from 'lucide-react';
 import { useAlertasStockBajo } from '@/hooks/useStock';
 import { usePedidosWooCommerce } from '@/hooks/usePedidosWooCommerce';
@@ -30,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/contabilidad/facturas-compra', label: 'Facturas Compra',  icon: FileText },
   { href: '/contabilidad/facturas-venta',  label: 'Facturas Venta',   icon: Receipt },
   { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
+  { href: '/configuracion/certificado-firma', label: 'Configuración', icon: Settings, roles: ['GERENTE'] },
 ];
 
 export function Sidebar() {

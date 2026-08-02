@@ -43,6 +43,15 @@ describe('extraerCertificado + firmarXML (pipeline con certificado de prueba)', 
     expect(cert.certificadoBase64Der.length).toBeGreaterThan(0);
   });
 
+  it('extrae la fecha de vencimiento del certificado', async () => {
+    const cert = await extraerCertificado(p12Base64, password);
+    expect(cert.vigenciaHasta).toBeInstanceOf(Date);
+    // generarP12DePrueba fija notAfter a ~1 año desde hoy.
+    const enUnAño = new Date();
+    enUnAño.setFullYear(enUnAño.getFullYear() + 1);
+    expect(Math.abs(cert.vigenciaHasta.getTime() - enUnAño.getTime())).toBeLessThan(60_000);
+  });
+
   it('rechaza una contraseña incorrecta con un error claro', async () => {
     await expect(extraerCertificado(p12Base64, 'contraseña-incorrecta')).rejects.toThrow(
       /No se pudo leer el archivo \.p12/,

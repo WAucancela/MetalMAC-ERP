@@ -3,9 +3,10 @@
  * real ante el SRI (genera XML → firma XAdES-BES → recepción → autorización → RIDE
  * → email). Solo se puede llamar sobre una factura en BORRADOR.
  *
- * Todas las variables de entorno requeridas (SRI_AMBIENTE, el .p12, los datos del
- * emisor) se leen y validan ANTES de tocar la base de datos o el SRI — si falta algo
- * se corta con un 500 claro, nunca a mitad de camino.
+ * Todo lo requerido (SRI_AMBIENTE, el certificado .p12 activo cargado desde
+ * Configuración → Certificado de firma, los datos del emisor) se lee y valida
+ * ANTES de tocar la factura o el SRI — si falta algo se corta con un 500 claro,
+ * nunca a mitad de camino.
  *
  * El secuencial/clave de acceso se graban en la factura ANTES de llamar al SRI: si la
  * llamada de red falla a mitad de camino, no queremos que un reintento manual vuelva
@@ -24,6 +25,7 @@ import {
   type EmisorConfig,
 } from '@/lib/services/sri-emision.service';
 import { extraerCertificado, firmarXML } from '@/lib/services/sri-firma.service';
+import { cargarCertificadoActivo } from '@/lib/services/certificado.service';
 import {
   resolverAmbienteSRI,
   digitoAmbiente,
@@ -72,14 +74,17 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   let ambiente: 'PRUEBAS' | 'PRODUCCION';
   let emisor: EmisorConfig;
-  const p12Base64 = process.env.SRI_FIRMA_P12_BASE64;
-  const p12Password = process.env.SRI_FIRMA_P12_PASSWORD;
+  let p12Base64: string;
+  let p12Password: string;
   try {
     ambiente = resolverAmbienteSRI();
     emisor = leerEmisorConfig();
-    if (!p12Base64 || !p12Password) {
-      throw new Error('Falta configurar el certificado de firma (SRI_FIRMA_P12_BASE64 / SRI_FIRMA_P12_PASSWORD)');
+    const certificado = await cargarCertificadoActivo();
+    if (!certificado) {
+      throw new Error('Falta configurar el certificado de firma — subilo en Configuración → Certificado de firma');
     }
+    p12Base64 = certificado.p12Base64;
+    p12Password = certificado.password;
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
