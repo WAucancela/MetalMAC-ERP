@@ -103,6 +103,11 @@ export function canWrite(user: AuthenticatedUser): boolean {
   return ['GERENTE', 'BODEGUERO'].includes(user.rol);
 }
 
+/** Módulo financiero (cobros/pagos, gastos, caja, bancos, centros de costo) — GERENTE y CONTABILIDAD, no BODEGUERO/PRODUCCION. */
+export function puedeGestionarFinanzas(user: AuthenticatedUser): boolean {
+  return ['GERENTE', 'CONTABILIDAD'].includes(user.rol);
+}
+
 // ── Paginación por cursor (columna_orden, id) ──────────────────────────────────
 //
 // Reemplaza el `startAfter(docSnapshot)` de Firestore, que no tiene equivalente

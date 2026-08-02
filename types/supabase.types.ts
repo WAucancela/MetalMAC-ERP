@@ -199,6 +199,30 @@ export type Database = {
           },
         ]
       }
+      centros_costo: {
+        Row: {
+          activo: boolean
+          codigo: string
+          creado_en: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          codigo: string
+          creado_en?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          codigo?: string
+          creado_en?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
       certificados_firma: {
         Row: {
           activo: boolean
@@ -565,9 +589,10 @@ export type Database = {
           },
         ]
       }
-      gastos_proyecto: {
+      gastos: {
         Row: {
           categoria: Database["public"]["Enums"]["categoria_gasto"]
+          centro_costo_id: string | null
           comprobante: string | null
           creado_en: string
           creado_por: string
@@ -578,10 +603,11 @@ export type Database = {
           monto: number
           orden_id: string | null
           proveedor_id: string | null
-          proyecto_id: string
+          proyecto_id: string | null
         }
         Insert: {
           categoria: Database["public"]["Enums"]["categoria_gasto"]
+          centro_costo_id?: string | null
           comprobante?: string | null
           creado_en?: string
           creado_por: string
@@ -592,10 +618,11 @@ export type Database = {
           monto: number
           orden_id?: string | null
           proveedor_id?: string | null
-          proyecto_id: string
+          proyecto_id?: string | null
         }
         Update: {
           categoria?: Database["public"]["Enums"]["categoria_gasto"]
+          centro_costo_id?: string | null
           comprobante?: string | null
           creado_en?: string
           creado_por?: string
@@ -606,9 +633,16 @@ export type Database = {
           monto?: number
           orden_id?: string | null
           proveedor_id?: string | null
-          proyecto_id?: string
+          proyecto_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_costo"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gastos_proyecto_factura_id_fkey"
             columns: ["factura_id"]

@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ActualizarProyectoSchema } from '@/lib/validations/proyectos.schema';
-import { mapProyectoRow, mapGastoProyectoRow } from '@/lib/services/mappers';
+import { mapProyectoRow, mapGastoRow } from '@/lib/services/mappers';
 import type { Database } from '@/types/supabase.types';
 
 // Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
@@ -25,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     const [{ data: proyecto, error: proyectoError }, { data: gastos, error: gastosError }, { data: ordenes, error: ordenesError }] =
       await Promise.all([
         supabaseAdmin.from('proyectos').select('*').eq('id', params.id).maybeSingle(),
-        supabaseAdmin.from('gastos_proyecto').select('*').eq('proyecto_id', params.id).order('fecha', { ascending: false }).limit(200),
+        supabaseAdmin.from('gastos').select('*').eq('proyecto_id', params.id).order('fecha', { ascending: false }).limit(200),
         supabaseAdmin.from('ordenes_produccion').select('id').eq('proyecto_id', params.id),
       ]);
     if (proyectoError) throw proyectoError;
@@ -37,9 +37,9 @@ export async function GET(request: Request, { params }: RouteParams) {
       ok: true,
       data: {
         proyecto: mapProyectoRow(proyecto),
-        gastos: (gastos ?? []).map(mapGastoProyectoRow),
+        gastos: (gastos ?? []).map(mapGastoRow),
         // costoReal ya no se re-suma en memoria: proyecto.costo_real lo mantiene
-        // el trigger sobre gastos_proyecto (fuente de verdad única, ver Fase 1).
+        // el trigger sobre gastos (fuente de verdad única, ver Fase 1).
         costoReal: Number(proyecto.costo_real),
         ordenesProduccion: (ordenes ?? []).map((o) => o.id),
       },

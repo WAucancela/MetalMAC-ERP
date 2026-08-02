@@ -524,9 +524,10 @@ export interface Proyecto {
   actualizadoPor: string;
 }
 
-export interface GastoProyecto {
+export interface Gasto {
   id: string;
-  proyectoId: string;
+  proyectoId: string | null;     // null = gasto general, no atado a un proyecto
+  centroCostoId: string | null;
   categoria: CategoriaGasto;
   descripcion: string;
   monto: number;              // USD
@@ -537,6 +538,14 @@ export interface GastoProyecto {
   comprobante: string | null; // URL en Storage
   creadoEn: string;
   creadoPor: string;
+}
+
+export interface CentroCosto {
+  id: string;
+  codigo: string;
+  nombre: string;
+  activo: boolean;
+  creadoEn: string;
 }
 
 // ─────────────────────────────────────────────

@@ -7,7 +7,7 @@
 import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
-  GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
+  Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
   FacturaVenta, LineaFacturaVenta, Operario, OrdenOperacion,
 } from '@/types/metalmac.types';
 
@@ -23,7 +23,8 @@ type OrdenOperacionRow = Database['public']['Tables']['orden_operaciones']['Row'
   operarios?: Pick<OperarioRow, 'nombre'> | null;
 };
 type ProyectoRow = Database['public']['Tables']['proyectos']['Row'];
-type GastoProyectoRow = Database['public']['Tables']['gastos_proyecto']['Row'];
+type GastoRow = Database['public']['Tables']['gastos']['Row'];
+type CentroCostoRow = Database['public']['Tables']['centros_costo']['Row'];
 type FacturaCompraRow = Database['public']['Tables']['facturas_compra']['Row'];
 type FacturaCompraLineaRow = Database['public']['Tables']['factura_compra_lineas']['Row'];
 type FacturaCompraRetencionRow = Database['public']['Tables']['factura_compra_retenciones']['Row'];
@@ -169,10 +170,11 @@ export function mapProyectoRow(row: ProyectoRow): Proyecto {
   };
 }
 
-export function mapGastoProyectoRow(row: GastoProyectoRow): GastoProyecto {
+export function mapGastoRow(row: GastoRow): Gasto {
   return {
     id: row.id,
     proyectoId: row.proyecto_id,
+    centroCostoId: row.centro_costo_id,
     categoria: row.categoria,
     descripcion: row.descripcion,
     monto: Number(row.monto),
@@ -183,6 +185,16 @@ export function mapGastoProyectoRow(row: GastoProyectoRow): GastoProyecto {
     comprobante: row.comprobante,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
+  };
+}
+
+export function mapCentroCostoRow(row: CentroCostoRow): CentroCosto {
+  return {
+    id: row.id,
+    codigo: row.codigo,
+    nombre: row.nombre,
+    activo: row.activo,
+    creadoEn: row.creado_en,
   };
 }
 

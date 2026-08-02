@@ -10,27 +10,31 @@ function authHeaders(token: string) {
 
 export function useGastos(params?: {
   proyectoId?: string;
+  centroCostoId?: string;
   categoria?: string;
   desde?: string;
   hasta?: string;
 }) {
   const { token } = useAuth();
   const sp = new URLSearchParams();
-  if (params?.proyectoId) sp.set('proyectoId', params.proyectoId);
-  if (params?.categoria)  sp.set('categoria',  params.categoria);
-  if (params?.desde)      sp.set('desde',      params.desde);
-  if (params?.hasta)      sp.set('hasta',      params.hasta);
+  if (params?.proyectoId)    sp.set('proyectoId',    params.proyectoId);
+  if (params?.centroCostoId) sp.set('centroCostoId', params.centroCostoId);
+  if (params?.categoria)     sp.set('categoria',      params.categoria);
+  if (params?.desde)         sp.set('desde',          params.desde);
+  if (params?.hasta)         sp.set('hasta',          params.hasta);
 
   return useQuery({
     queryKey: ['gastos', params],
     queryFn: async () => {
-      const res = await fetch(`/api/gastos-proyecto?${sp.toString()}`, {
+      const res = await fetch(`/api/gastos?${sp.toString()}`, {
         headers: authHeaders(token ?? ''),
       });
       if (!res.ok) throw new Error('Error al cargar gastos');
       return (await res.json()).data;
     },
-    enabled: !!token && !!params?.proyectoId,
+    // Antes exigía proyectoId (uso embebido en detalle de proyecto); ahora
+    // también se usa para la lista general de gastos sin proyecto.
+    enabled: !!token,
     staleTime: 30_000,
   });
 }
@@ -40,7 +44,7 @@ export function useCrearGasto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: GastoInput) => {
-      const res = await fetch('/api/gastos-proyecto', {
+      const res = await fetch('/api/gastos', {
         method: 'POST',
         headers: { ...authHeaders(token ?? ''), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -50,18 +54,18 @@ export function useCrearGasto() {
       return json;
     },
     onSuccess: (_data, variables) => {
-      qc.invalidateQueries({ queryKey: ['gastos', { proyectoId: variables.proyectoId }] });
-      qc.invalidateQueries({ queryKey: ['proyectos', variables.proyectoId] });
+      qc.invalidateQueries({ queryKey: ['gastos'] });
+      if (variables.proyectoId) qc.invalidateQueries({ queryKey: ['proyectos', variables.proyectoId] });
     },
   });
 }
 
-export function useActualizarGasto(id: string, proyectoId: string) {
+export function useActualizarGasto(id: string, proyectoId?: string | null) {
   const { token } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: ActualizarGastoInput) => {
-      const res = await fetch(`/api/gastos-proyecto/${id}`, {
+      const res = await fetch(`/api/gastos/${id}`, {
         method: 'PUT',
         headers: { ...authHeaders(token ?? ''), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -72,17 +76,17 @@ export function useActualizarGasto(id: string, proyectoId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['gastos'] });
-      qc.invalidateQueries({ queryKey: ['proyectos', proyectoId] });
+      if (proyectoId) qc.invalidateQueries({ queryKey: ['proyectos', proyectoId] });
     },
   });
 }
 
-export function useEliminarGasto(proyectoId: string) {
+export function useEliminarGasto(proyectoId?: string | null) {
   const { token } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/gastos-proyecto/${id}`, {
+      const res = await fetch(`/api/gastos/${id}`, {
         method: 'DELETE',
         headers: authHeaders(token ?? ''),
       });
@@ -92,7 +96,7 @@ export function useEliminarGasto(proyectoId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['gastos'] });
-      qc.invalidateQueries({ queryKey: ['proyectos', proyectoId] });
+      if (proyectoId) qc.invalidateQueries({ queryKey: ['proyectos', proyectoId] });
     },
   });
 }

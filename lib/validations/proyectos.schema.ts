@@ -40,7 +40,9 @@ const CATEGORIAS_GASTO = [
 ] as const;
 
 export const GastoSchema = z.object({
-  proyectoId:  z.string().min(1),
+  // Sin proyectoId = gasto general (administrativo, no atado a un proyecto).
+  proyectoId:    z.string().nullable().optional(),
+  centroCostoId: z.string().nullable().optional(),
   categoria:   z.enum(CATEGORIAS_GASTO),
   descripcion: z.string().min(2).max(500),
   monto:       z.number().positive('El monto debe ser mayor a 0'),
@@ -57,12 +59,13 @@ export const ActualizarGastoSchema = GastoSchema.omit({ proyectoId: true }).part
 export type ActualizarGastoInput = z.infer<typeof ActualizarGastoSchema>;
 
 export const GastosQuerySchema = z.object({
-  proyectoId: z.string().optional(),
-  categoria:  z.enum(CATEGORIAS_GASTO).optional(),
-  desde:      z.string().optional(),
-  hasta:      z.string().optional(),
-  limit:      z.coerce.number().int().min(1).max(200).default(100),
-  startAfter: z.string().optional(),
+  proyectoId:    z.string().optional(),
+  centroCostoId: z.string().optional(),
+  categoria:     z.enum(CATEGORIAS_GASTO).optional(),
+  desde:         z.string().optional(),
+  hasta:         z.string().optional(),
+  limit:         z.coerce.number().int().min(1).max(200).default(100),
+  startAfter:    z.string().optional(),
 });
 
 export type GastosQuery = z.infer<typeof GastosQuerySchema>;
