@@ -1,44 +1,16 @@
 /**
  * __tests__/sri-soap.service.test.ts
  *
- * resolverAmbienteSRI/digitoAmbiente son puras. enviarRecepcion/consultarAutorizacion
- * mockean `fetch` con una respuesta SOAP sintética — prueban que el parseo funciona,
- * NO que el SRI real vaya a responder así (eso solo se confirma contra el ambiente
- * de pruebas real).
+ * digitoAmbiente es pura. enviarRecepcion/consultarAutorizacion mockean `fetch`
+ * con una respuesta SOAP sintética — prueban que el parseo funciona, NO que el
+ * SRI real vaya a responder así (eso solo se confirma contra el ambiente de
+ * pruebas real).
  */
 import {
-  resolverAmbienteSRI,
   digitoAmbiente,
   enviarRecepcion,
   consultarAutorizacion,
 } from '../lib/services/sri-soap.service';
-
-describe('resolverAmbienteSRI', () => {
-  const original = process.env.SRI_AMBIENTE;
-  afterEach(() => {
-    process.env.SRI_AMBIENTE = original;
-  });
-
-  it('lanza si SRI_AMBIENTE no está seteado', () => {
-    delete process.env.SRI_AMBIENTE;
-    expect(() => resolverAmbienteSRI()).toThrow(/SRI_AMBIENTE/);
-  });
-
-  it('lanza si SRI_AMBIENTE tiene un valor inválido', () => {
-    process.env.SRI_AMBIENTE = 'STAGING';
-    expect(() => resolverAmbienteSRI()).toThrow(/SRI_AMBIENTE/);
-  });
-
-  it('acepta PRUEBAS', () => {
-    process.env.SRI_AMBIENTE = 'PRUEBAS';
-    expect(resolverAmbienteSRI()).toBe('PRUEBAS');
-  });
-
-  it('acepta PRODUCCION', () => {
-    process.env.SRI_AMBIENTE = 'PRODUCCION';
-    expect(resolverAmbienteSRI()).toBe('PRODUCCION');
-  });
-});
 
 describe('digitoAmbiente', () => {
   it('mapea PRUEBAS a "1" y PRODUCCION a "2"', () => {

@@ -3,10 +3,11 @@
  * real ante el SRI (genera XML → firma XAdES-BES → recepción → autorización → RIDE
  * → email). Solo se puede llamar sobre una factura en BORRADOR.
  *
- * Todo lo requerido (SRI_AMBIENTE, el certificado .p12 activo cargado desde
- * Configuración → Certificado de firma, los datos del emisor) se lee y valida
- * ANTES de tocar la factura o el SRI — si falta algo se corta con un 500 claro,
- * nunca a mitad de camino.
+ * Todo lo requerido (ambiente, datos del emisor, email de Resend — configurados
+ * en Configuración → SRI / Email; el certificado .p12 activo cargado desde
+ * Configuración → Certificado de firma) se lee y valida ANTES de tocar la
+ * factura o el SRI — si falta algo se corta con un 500 claro, nunca a mitad de
+ * camino.
  *
  * El secuencial/clave de acceso se graban en la factura ANTES de llamar al SRI: si la
  * llamada de red falla a mitad de camino, no queremos que un reintento manual vuelva
@@ -26,11 +27,12 @@ import {
 } from '@/lib/services/sri-emision.service';
 import { extraerCertificado, firmarXML } from '@/lib/services/sri-firma.service';
 import { cargarCertificadoActivo } from '@/lib/services/certificado.service';
+import { leerConfiguracionSRI } from '@/lib/services/configuracion-sri.service';
 import {
-  resolverAmbienteSRI,
   digitoAmbiente,
   enviarRecepcion,
   esperarAutorizacion,
+  type SriAmbiente,
 } from '@/lib/services/sri-soap.service';
 import { generarRidePDF } from '@/lib/services/ride.service';
 
@@ -39,46 +41,24 @@ export const dynamic = 'force-dynamic';
 
 interface RouteParams { params: { id: string } }
 
-function leerEmisorConfig(): EmisorConfig {
-  const claves = [
-    'SRI_EMISOR_RUC',
-    'SRI_EMISOR_RAZON_SOCIAL',
-    'SRI_EMISOR_NOMBRE_COMERCIAL',
-    'SRI_EMISOR_DIR_MATRIZ',
-    'SRI_EMISOR_DIR_ESTABLECIMIENTO',
-    'SRI_EMISOR_OBLIGADO_CONTABILIDAD',
-  ] as const;
-  for (const clave of claves) {
-    if (!process.env[clave]) {
-      throw new Error(`Falta configurar ${clave} (datos del emisor) para poder emitir facturas electrónicas`);
-    }
-  }
-  const obligado = process.env.SRI_EMISOR_OBLIGADO_CONTABILIDAD;
-  if (obligado !== 'SI' && obligado !== 'NO') {
-    throw new Error('SRI_EMISOR_OBLIGADO_CONTABILIDAD debe ser "SI" o "NO"');
-  }
-  return {
-    ruc: process.env.SRI_EMISOR_RUC!,
-    razonSocial: process.env.SRI_EMISOR_RAZON_SOCIAL!,
-    nombreComercial: process.env.SRI_EMISOR_NOMBRE_COMERCIAL!,
-    dirMatriz: process.env.SRI_EMISOR_DIR_MATRIZ!,
-    dirEstablecimiento: process.env.SRI_EMISOR_DIR_ESTABLECIMIENTO!,
-    obligadoContabilidad: obligado,
-  };
-}
-
 export async function POST(request: Request, { params }: RouteParams) {
   const user = await getAuthenticatedUser(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (!canWrite(user)) return NextResponse.json({ error: 'Sin permiso de escritura' }, { status: 403 });
 
-  let ambiente: 'PRUEBAS' | 'PRODUCCION';
+  let ambiente: SriAmbiente;
   let emisor: EmisorConfig;
+  let resendApiKey: string | null;
+  let resendFromEmail: string;
   let p12Base64: string;
   let p12Password: string;
   try {
-    ambiente = resolverAmbienteSRI();
-    emisor = leerEmisorConfig();
+    const config = await leerConfiguracionSRI();
+    ambiente = config.ambiente;
+    emisor = config.emisor;
+    resendApiKey = config.resendApiKey;
+    resendFromEmail = config.resendFromEmail;
+
     const certificado = await cargarCertificadoActivo();
     if (!certificado) {
       throw new Error('Falta configurar el certificado de firma — subilo en Configuración → Certificado de firma');
@@ -206,10 +186,10 @@ export async function POST(request: Request, { params }: RouteParams) {
         ambiente,
       });
 
-      if (process.env.RESEND_API_KEY && factura.clienteEmail) {
-        const resend = new Resend(process.env.RESEND_API_KEY);
+      if (resendApiKey && factura.clienteEmail) {
+        const resend = new Resend(resendApiKey);
         await resend.emails.send({
-          from: process.env.RESEND_FROM_EMAIL ?? 'facturacion@resend.dev',
+          from: resendFromEmail,
           to: factura.clienteEmail,
           subject: `Factura electrónica ${numeroFactura}`,
           text: `Adjuntamos la factura electrónica ${numeroFactura} por un total de USD ${factura.total.toFixed(2)}.`,

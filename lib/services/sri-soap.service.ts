@@ -6,10 +6,11 @@
  * usado en el resto del repo) — mismo criterio de "sin abstracción que esconda qué
  * XML se manda" que ya sigue sri.service.ts.
  *
- * SRI_AMBIENTE decide tanto el dígito de la clave de acceso como estos endpoints —
- * sin default: si no está seteado, se lanza un error al leerlo en vez de asumir un
- * ambiente (ver resolverAmbienteSRI). Nunca se debe hablar con el ambiente de
- * PRODUCCIÓN del SRI sin esa señal explícita.
+ * El ambiente (`SriAmbiente`) decide tanto el dígito de la clave de acceso como
+ * estos endpoints — viene de la configuración guardada en Configuración → SRI /
+ * Email (ver lib/services/configuracion-sri.service.ts), nunca de un default:
+ * nunca se debe hablar con el ambiente de PRODUCCIÓN del SRI sin una elección
+ * explícita del GERENTE.
  */
 
 import { XMLParser } from 'fast-xml-parser';
@@ -32,20 +33,6 @@ const ENDPOINTS: Record<SriAmbiente, { recepcion: string; autorizacion: string }
     autorizacion: 'https://cel.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline',
   },
 };
-
-/**
- * Lee SRI_AMBIENTE del entorno. Sin default a propósito — si no está seteado
- * explícitamente, lanza en vez de asumir un ambiente (ver comentario del archivo).
- */
-export function resolverAmbienteSRI(): SriAmbiente {
-  const valor = process.env.SRI_AMBIENTE;
-  if (valor !== 'PRUEBAS' && valor !== 'PRODUCCION') {
-    throw new Error(
-      `SRI_AMBIENTE debe ser "PRUEBAS" o "PRODUCCION" — valor actual: ${JSON.stringify(valor ?? null)}`,
-    );
-  }
-  return valor;
-}
 
 /** Dígito de ambiente (1/2) que va dentro de la clave de acceso — mismo criterio que el SRI usa en sus propios comprobantes. */
 export function digitoAmbiente(ambiente: SriAmbiente): '1' | '2' {

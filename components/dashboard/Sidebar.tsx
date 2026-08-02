@@ -30,7 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/contabilidad/facturas-compra', label: 'Facturas Compra',  icon: FileText },
   { href: '/contabilidad/facturas-venta',  label: 'Facturas Venta',   icon: Receipt },
   { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
-  { href: '/configuracion/certificado-firma', label: 'Configuración', icon: Settings, roles: ['GERENTE'] },
+  { href: '/configuracion',                label: 'Configuración',    icon: Settings, roles: ['GERENTE'] },
 ];
 
 export function Sidebar() {

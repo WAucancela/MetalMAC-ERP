@@ -229,6 +229,51 @@ export type Database = {
         }
         Relationships: []
       }
+      configuracion_sri: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          ambiente: string | null
+          emisor_dir_establecimiento: string | null
+          emisor_dir_matriz: string | null
+          emisor_nombre_comercial: string | null
+          emisor_obligado_contabilidad: string | null
+          emisor_razon_social: string | null
+          emisor_ruc: string | null
+          id: number
+          resend_api_key_cifrada: string | null
+          resend_from_email: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          ambiente?: string | null
+          emisor_dir_establecimiento?: string | null
+          emisor_dir_matriz?: string | null
+          emisor_nombre_comercial?: string | null
+          emisor_obligado_contabilidad?: string | null
+          emisor_razon_social?: string | null
+          emisor_ruc?: string | null
+          id?: number
+          resend_api_key_cifrada?: string | null
+          resend_from_email?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          ambiente?: string | null
+          emisor_dir_establecimiento?: string | null
+          emisor_dir_matriz?: string | null
+          emisor_nombre_comercial?: string | null
+          emisor_obligado_contabilidad?: string | null
+          emisor_razon_social?: string | null
+          emisor_ruc?: string | null
+          id?: number
+          resend_api_key_cifrada?: string | null
+          resend_from_email?: string | null
+        }
+        Relationships: []
+      }
       contadores_anuales: {
         Row: {
           anio: number

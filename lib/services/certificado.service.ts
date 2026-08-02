@@ -2,60 +2,15 @@
  * certificado.service.ts — gestión del certificado .p12 de firma electrónica
  * subido desde el ERP (reemplaza a las env vars SRI_FIRMA_P12_BASE64/PASSWORD).
  *
- * La contraseña del .p12 nunca se guarda en texto plano: se cifra con
- * AES-256-GCM usando CERT_ENCRYPTION_KEY (clave de una sola vez, separada de la
- * contraseña del certificado — no cambia cuando el certificado se renueva).
- * El cifrado corre enteramente en Node (nunca vía pgcrypto/RPC de Postgres) para
- * no tener que pasar la clave a través de SQL.
+ * La contraseña del .p12 nunca se guarda en texto plano: se cifra vía
+ * lib/services/cifrado.service.ts con CERT_ENCRYPTION_KEY.
  */
 
-import crypto from 'crypto';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { extraerCertificado } from '@/lib/services/sri-firma.service';
+import { encriptar, desencriptar, leerClaveCifrado } from '@/lib/services/cifrado.service';
 
 const BUCKET = 'certificados-firma';
-
-// ─────────────────────────────────────────────
-// Cifrado (puro — sin I/O, testeable sin mocks)
-// ─────────────────────────────────────────────
-
-/**
- * Cifra `passwordPlano` con AES-256-GCM. `claveHex` son 32 bytes en hex (64
- * caracteres). Devuelve base64 de `iv (12) + authTag (16) + ciphertext`.
- */
-export function encriptarPassword(passwordPlano: string, claveHex: string): string {
-  const clave = Buffer.from(claveHex, 'hex');
-  if (clave.length !== 32) {
-    throw new Error('CERT_ENCRYPTION_KEY debe ser 32 bytes en hex (64 caracteres)');
-  }
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', clave, iv);
-  const cifrado = Buffer.concat([cipher.update(passwordPlano, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return Buffer.concat([iv, authTag, cifrado]).toString('base64');
-}
-
-/** Inversa de `encriptarPassword`. */
-export function desencriptarPassword(cifradoBase64: string, claveHex: string): string {
-  const clave = Buffer.from(claveHex, 'hex');
-  if (clave.length !== 32) {
-    throw new Error('CERT_ENCRYPTION_KEY debe ser 32 bytes en hex (64 caracteres)');
-  }
-  const datos = Buffer.from(cifradoBase64, 'base64');
-  const iv = datos.subarray(0, 12);
-  const authTag = datos.subarray(12, 28);
-  const cifrado = datos.subarray(28);
-
-  const decipher = crypto.createDecipheriv('aes-256-gcm', clave, iv);
-  decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(cifrado), decipher.final()]).toString('utf8');
-}
-
-function leerClaveEncriptacion(): string {
-  const clave = process.env.CERT_ENCRYPTION_KEY;
-  if (!clave) throw new Error('Falta configurar CERT_ENCRYPTION_KEY');
-  return clave;
-}
 
 // ─────────────────────────────────────────────
 // Subida / lectura del certificado activo (I/O)
@@ -94,7 +49,7 @@ export async function subirCertificado(
     .upload(storagePath, fileBuffer, { contentType: 'application/x-pkcs12' });
   if (uploadError) throw uploadError;
 
-  const passwordCifrada = encriptarPassword(passwordPlano, leerClaveEncriptacion());
+  const passwordCifrada = encriptar(passwordPlano, leerClaveCifrado());
 
   const { error: desactivarError } = await supabaseAdmin
     .from('certificados_firma')
@@ -130,7 +85,7 @@ export async function cargarCertificadoActivo(): Promise<CertificadoActivo | nul
   if (downloadError) throw downloadError;
 
   const p12Base64 = Buffer.from(await archivo.arrayBuffer()).toString('base64');
-  const password = desencriptarPassword(fila.password_cifrada, leerClaveEncriptacion());
+  const password = desencriptar(fila.password_cifrada, leerClaveCifrado());
 
   return {
     p12Base64,
