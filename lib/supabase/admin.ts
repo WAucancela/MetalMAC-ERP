@@ -18,4 +18,10 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 export const supabaseAdmin = createClient<Database>(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
+  // Next.js parchea el `fetch` global y puede cachear las llamadas internas de
+  // supabase-js (el cliente se crea una sola vez a nivel de módulo, no por request) —
+  // sin esto, una API route con `force-dynamic` puede seguir sirviendo lecturas viejas.
+  global: {
+    fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
+  },
 });
