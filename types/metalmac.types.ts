@@ -277,6 +277,7 @@ export interface FacturaCompra {
   claveAcceso: string;        // 49 dígitos SRI
   numeroFactura: string;      // 001-001-000000001
   fechaEmision: string;
+  fechaVencimiento: string | null;
   subtotalSinIva: number;
   iva: number;                // 15% Ecuador
   total: number;
@@ -285,6 +286,19 @@ export interface FacturaCompra {
   lineas: LineaFacturaCompra[];
   retenciones: Retencion[];
   creadoEn: string;
+}
+
+export interface PagoFacturaCompra {
+  id: string;
+  facturaCompraId: string;
+  monto: number;
+  fecha: string;
+  metodoPago: string;
+  referencia: string;
+  cuentaBancariaId: string | null;
+  notas: string;
+  creadoEn: string;
+  creadoPor: string;
 }
 
 // ─────────────────────────────────────────────
@@ -313,6 +327,7 @@ export interface FacturaVenta {
   puntoEmision: string;
   secuencial: number | null;       // asignado solo en el momento real de emisión
   fechaEmision: string;
+  fechaVencimiento: string | null;
   subtotalSinIva: number;
   iva: number;
   total: number;
@@ -326,6 +341,19 @@ export interface FacturaVenta {
   sriEstado: SriEstadoTramite | null;
   sriMensaje: string;
   emailEnviadoEn: string | null;
+}
+
+export interface CobroFacturaVenta {
+  id: string;
+  facturaVentaId: string;
+  monto: number;
+  fecha: string;
+  metodoPago: string;
+  referencia: string;
+  cuentaBancariaId: string | null;
+  notas: string;
+  creadoEn: string;
+  creadoPor: string;
 }
 
 // ─────────────────────────────────────────────
@@ -546,6 +574,46 @@ export interface CentroCosto {
   nombre: string;
   activo: boolean;
   creadoEn: string;
+}
+
+// ─────────────────────────────────────────────
+// Bancos y caja chica
+// ─────────────────────────────────────────────
+
+export type TipoMovimientoBancario = 'DEPOSITO' | 'RETIRO' | 'PAGO_PROVEEDOR' | 'COBRO_CLIENTE' | 'AJUSTE';
+export type TipoMovimientoCaja = 'INGRESO' | 'EGRESO';
+
+export interface CuentaBancaria {
+  id: string;
+  banco: string;
+  numeroCuenta: string;
+  tipoCuenta: 'AHORROS' | 'CORRIENTE';
+  saldoInicial: number;
+  activo: boolean;
+  creadoEn: string;
+}
+
+export interface MovimientoBancario {
+  id: string;
+  cuentaBancariaId: string;
+  tipo: TipoMovimientoBancario;
+  monto: number;
+  fecha: string;
+  descripcion: string;
+  conciliado: boolean;
+  creadoEn: string;
+  creadoPor: string;
+}
+
+export interface CajaMovimiento {
+  id: string;
+  tipo: TipoMovimientoCaja;
+  monto: number;
+  fecha: string;
+  concepto: string;
+  centroCostoId: string | null;
+  creadoEn: string;
+  creadoPor: string;
 }
 
 // ─────────────────────────────────────────────

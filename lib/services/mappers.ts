@@ -8,7 +8,8 @@ import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
-  FacturaVenta, LineaFacturaVenta, Operario, OrdenOperacion,
+  FacturaVenta, LineaFacturaVenta, Operario, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
+  CuentaBancaria, MovimientoBancario, CajaMovimiento,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -32,6 +33,11 @@ type PedidoWooCommerceRow = Database['public']['Tables']['pedidos_woocommerce'][
 type LineaPedidoWooCommerceRow = Database['public']['Tables']['pedido_woocommerce_lineas']['Row'];
 type FacturaVentaRow = Database['public']['Tables']['facturas_venta']['Row'];
 type FacturaVentaLineaRow = Database['public']['Tables']['factura_venta_lineas']['Row'];
+type PagoFacturaCompraRow = Database['public']['Tables']['pagos_factura_compra']['Row'];
+type CobroFacturaVentaRow = Database['public']['Tables']['cobros_factura_venta']['Row'];
+type CuentaBancariaRow = Database['public']['Tables']['cuentas_bancarias']['Row'];
+type MovimientoBancarioRow = Database['public']['Tables']['movimientos_bancarios']['Row'];
+type CajaMovimientoRow = Database['public']['Tables']['caja_chica_movimientos']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -209,6 +215,7 @@ export function mapFacturaCompraRow(
     claveAcceso: row.clave_acceso,
     numeroFactura: row.numero_factura,
     fechaEmision: row.fecha_emision,
+    fechaVencimiento: row.fecha_vencimiento,
     subtotalSinIva: Number(row.subtotal_sin_iva),
     iva: Number(row.iva),
     total: Number(row.total),
@@ -250,6 +257,7 @@ export function mapFacturaVentaRow(
     puntoEmision: row.punto_emision,
     secuencial: row.secuencial,
     fechaEmision: row.fecha_emision,
+    fechaVencimiento: row.fecha_vencimiento,
     subtotalSinIva: Number(row.subtotal_sin_iva),
     iva: Number(row.iva),
     total: Number(row.total),
@@ -321,5 +329,74 @@ export function mapPedidoWooCommerceRow(
     recibidoEn: row.recibido_en,
     procesadoEn: row.procesado_en,
     procesadoPor: row.procesado_por,
+  };
+}
+
+export function mapPagoFacturaCompraRow(row: PagoFacturaCompraRow): PagoFacturaCompra {
+  return {
+    id: row.id,
+    facturaCompraId: row.factura_compra_id,
+    monto: Number(row.monto),
+    fecha: row.fecha,
+    metodoPago: row.metodo_pago,
+    referencia: row.referencia,
+    cuentaBancariaId: row.cuenta_bancaria_id,
+    notas: row.notas,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
+  };
+}
+
+export function mapCobroFacturaVentaRow(row: CobroFacturaVentaRow): CobroFacturaVenta {
+  return {
+    id: row.id,
+    facturaVentaId: row.factura_venta_id,
+    monto: Number(row.monto),
+    fecha: row.fecha,
+    metodoPago: row.metodo_pago,
+    referencia: row.referencia,
+    cuentaBancariaId: row.cuenta_bancaria_id,
+    notas: row.notas,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
+  };
+}
+
+export function mapCuentaBancariaRow(row: CuentaBancariaRow): CuentaBancaria {
+  return {
+    id: row.id,
+    banco: row.banco,
+    numeroCuenta: row.numero_cuenta,
+    tipoCuenta: row.tipo_cuenta as CuentaBancaria['tipoCuenta'],
+    saldoInicial: Number(row.saldo_inicial),
+    activo: row.activo,
+    creadoEn: row.creado_en,
+  };
+}
+
+export function mapMovimientoBancarioRow(row: MovimientoBancarioRow): MovimientoBancario {
+  return {
+    id: row.id,
+    cuentaBancariaId: row.cuenta_bancaria_id,
+    tipo: row.tipo,
+    monto: Number(row.monto),
+    fecha: row.fecha,
+    descripcion: row.descripcion,
+    conciliado: row.conciliado,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
+  };
+}
+
+export function mapCajaMovimientoRow(row: CajaMovimientoRow): CajaMovimiento {
+  return {
+    id: row.id,
+    tipo: row.tipo,
+    monto: Number(row.monto),
+    fecha: row.fecha,
+    concepto: row.concepto,
+    centroCostoId: row.centro_costo_id,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
   };
 }

@@ -170,6 +170,47 @@ export type Database = {
           },
         ]
       }
+      caja_chica_movimientos: {
+        Row: {
+          centro_costo_id: string | null
+          concepto: string
+          creado_en: string
+          creado_por: string
+          fecha: string
+          id: string
+          monto: number
+          tipo: Database["public"]["Enums"]["tipo_movimiento_caja"]
+        }
+        Insert: {
+          centro_costo_id?: string | null
+          concepto: string
+          creado_en?: string
+          creado_por: string
+          fecha: string
+          id?: string
+          monto: number
+          tipo: Database["public"]["Enums"]["tipo_movimiento_caja"]
+        }
+        Update: {
+          centro_costo_id?: string | null
+          concepto?: string
+          creado_en?: string
+          creado_por?: string
+          fecha?: string
+          id?: string
+          monto?: number
+          tipo?: Database["public"]["Enums"]["tipo_movimiento_caja"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caja_chica_movimientos_centro_costo_id_fkey"
+            columns: ["centro_costo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_costo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorias: {
         Row: {
           descripcion: string
@@ -253,6 +294,60 @@ export type Database = {
         }
         Relationships: []
       }
+      cobros_factura_venta: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          factura_venta_id: string
+          fecha: string
+          id: string
+          metodo_pago: string
+          monto: number
+          notas: string
+          referencia: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          cuenta_bancaria_id?: string | null
+          factura_venta_id: string
+          fecha: string
+          id?: string
+          metodo_pago?: string
+          monto: number
+          notas?: string
+          referencia?: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          cuenta_bancaria_id?: string | null
+          factura_venta_id?: string
+          fecha?: string
+          id?: string
+          metodo_pago?: string
+          monto?: number
+          notas?: string
+          referencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cobros_factura_venta_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobros_factura_venta_factura_venta_id_fkey"
+            columns: ["factura_venta_id"]
+            isOneToOne: false
+            referencedRelation: "facturas_venta"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracion_sri: {
         Row: {
           actualizado_en: string
@@ -313,6 +408,36 @@ export type Database = {
           anio?: number
           clave?: string
           secuencia?: number
+        }
+        Relationships: []
+      }
+      cuentas_bancarias: {
+        Row: {
+          activo: boolean
+          banco: string
+          creado_en: string
+          id: string
+          numero_cuenta: string
+          saldo_inicial: number
+          tipo_cuenta: string
+        }
+        Insert: {
+          activo?: boolean
+          banco: string
+          creado_en?: string
+          id?: string
+          numero_cuenta: string
+          saldo_inicial?: number
+          tipo_cuenta: string
+        }
+        Update: {
+          activo?: boolean
+          banco?: string
+          creado_en?: string
+          id?: string
+          numero_cuenta?: string
+          saldo_inicial?: number
+          tipo_cuenta?: string
         }
         Relationships: []
       }
@@ -462,6 +587,7 @@ export type Database = {
           creado_en: string
           estado: Database["public"]["Enums"]["estado_factura_compra"]
           fecha_emision: string
+          fecha_vencimiento: string | null
           id: string
           iva: number
           numero_factura: string
@@ -475,6 +601,7 @@ export type Database = {
           creado_en?: string
           estado?: Database["public"]["Enums"]["estado_factura_compra"]
           fecha_emision: string
+          fecha_vencimiento?: string | null
           id?: string
           iva: number
           numero_factura: string
@@ -488,6 +615,7 @@ export type Database = {
           creado_en?: string
           estado?: Database["public"]["Enums"]["estado_factura_compra"]
           fecha_emision?: string
+          fecha_vencimiento?: string | null
           id?: string
           iva?: number
           numero_factura?: string
@@ -518,6 +646,7 @@ export type Database = {
           establecimiento: string
           estado: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
+          fecha_vencimiento: string | null
           id: string
           iva: number
           numero_factura: string
@@ -542,6 +671,7 @@ export type Database = {
           establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision: string
+          fecha_vencimiento?: string | null
           id?: string
           iva: number
           numero_factura: string
@@ -566,6 +696,7 @@ export type Database = {
           establecimiento?: string
           estado?: Database["public"]["Enums"]["estado_factura_venta"]
           fecha_emision?: string
+          fecha_vencimiento?: string | null
           id?: string
           iva?: number
           numero_factura?: string
@@ -732,6 +863,50 @@ export type Database = {
             columns: ["unidad_base_id"]
             isOneToOne: false
             referencedRelation: "unidades_medida"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_bancarios: {
+        Row: {
+          conciliado: boolean
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string
+          descripcion: string
+          fecha: string
+          id: string
+          monto: number
+          tipo: Database["public"]["Enums"]["tipo_movimiento_bancario"]
+        }
+        Insert: {
+          conciliado?: boolean
+          creado_en?: string
+          creado_por: string
+          cuenta_bancaria_id: string
+          descripcion?: string
+          fecha: string
+          id?: string
+          monto: number
+          tipo: Database["public"]["Enums"]["tipo_movimiento_bancario"]
+        }
+        Update: {
+          conciliado?: boolean
+          creado_en?: string
+          creado_por?: string
+          cuenta_bancaria_id?: string
+          descripcion?: string
+          fecha?: string
+          id?: string
+          monto?: number
+          tipo?: Database["public"]["Enums"]["tipo_movimiento_bancario"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_bancarios_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
             referencedColumns: ["id"]
           },
         ]
@@ -977,6 +1152,60 @@ export type Database = {
             columns: ["proyecto_id"]
             isOneToOne: false
             referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos_factura_compra: {
+        Row: {
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          factura_compra_id: string
+          fecha: string
+          id: string
+          metodo_pago: string
+          monto: number
+          notas: string
+          referencia: string
+        }
+        Insert: {
+          creado_en?: string
+          creado_por: string
+          cuenta_bancaria_id?: string | null
+          factura_compra_id: string
+          fecha: string
+          id?: string
+          metodo_pago?: string
+          monto: number
+          notas?: string
+          referencia?: string
+        }
+        Update: {
+          creado_en?: string
+          creado_por?: string
+          cuenta_bancaria_id?: string | null
+          factura_compra_id?: string
+          fecha?: string
+          id?: string
+          metodo_pago?: string
+          monto?: number
+          notas?: string
+          referencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_factura_compra_cuenta_bancaria_id_fkey"
+            columns: ["cuenta_bancaria_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_bancarias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_factura_compra_factura_compra_id_fkey"
+            columns: ["factura_compra_id"]
+            isOneToOne: false
+            referencedRelation: "facturas_compra"
             referencedColumns: ["id"]
           },
         ]
@@ -1524,6 +1753,36 @@ export type Database = {
         Args: { p_lineas: Json; p_pedido_id: string }
         Returns: undefined
       }
+      registrar_cobro_venta: {
+        Args: {
+          p_cuenta_bancaria_id: string
+          p_factura_venta_id: string
+          p_fecha: string
+          p_metodo_pago: string
+          p_monto: number
+          p_notas: string
+          p_referencia: string
+          p_usuario_id: string
+        }
+        Returns: {
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          factura_venta_id: string
+          fecha: string
+          id: string
+          metodo_pago: string
+          monto: number
+          notas: string
+          referencia: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cobros_factura_venta"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       registrar_movimiento_inventario: {
         Args: {
           p_cantidad: number
@@ -1537,6 +1796,36 @@ export type Database = {
           p_usuario_id: string
         }
         Returns: string
+      }
+      registrar_pago_compra: {
+        Args: {
+          p_cuenta_bancaria_id: string
+          p_factura_compra_id: string
+          p_fecha: string
+          p_metodo_pago: string
+          p_monto: number
+          p_notas: string
+          p_referencia: string
+          p_usuario_id: string
+        }
+        Returns: {
+          creado_en: string
+          creado_por: string
+          cuenta_bancaria_id: string | null
+          factura_compra_id: string
+          fecha: string
+          id: string
+          metodo_pago: string
+          monto: number
+          notas: string
+          referencia: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pagos_factura_compra"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       reservar_materiales_bom: {
         Args: {
@@ -1603,6 +1892,13 @@ export type Database = {
         | "LIBERACION"
         | "MERMA"
         | "DEVOLUCION"
+      tipo_movimiento_bancario:
+        | "DEPOSITO"
+        | "RETIRO"
+        | "PAGO_PROVEEDOR"
+        | "COBRO_CLIENTE"
+        | "AJUSTE"
+      tipo_movimiento_caja: "INGRESO" | "EGRESO"
       tipo_operacion: "LASER" | "SOLDADURA" | "DOBLADO" | "ENSAMBLE"
       tipo_producto: "PRODUCTO_TERMINADO" | "SEMIELABORADO"
       tipo_retencion: "RENTA" | "IVA"
@@ -1789,6 +2085,14 @@ export const Constants = {
         "MERMA",
         "DEVOLUCION",
       ],
+      tipo_movimiento_bancario: [
+        "DEPOSITO",
+        "RETIRO",
+        "PAGO_PROVEEDOR",
+        "COBRO_CLIENTE",
+        "AJUSTE",
+      ],
+      tipo_movimiento_caja: ["INGRESO", "EGRESO"],
       tipo_operacion: ["LASER", "SOLDADURA", "DOBLADO", "ENSAMBLE"],
       tipo_producto: ["PRODUCTO_TERMINADO", "SEMIELABORADO"],
       tipo_retencion: ["RENTA", "IVA"],
