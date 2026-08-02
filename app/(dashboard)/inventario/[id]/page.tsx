@@ -4,6 +4,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useMaterial } from '@/hooks/useInventario';
 import { MovimientoForm } from '@/components/inventario/MovimientoForm';
@@ -17,7 +18,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Plus, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, TrendingUp, TrendingDown } from 'lucide-react';
 
 const TIPO_MOV_COLOR: Record<string, string> = {
   ENTRADA:         'bg-emerald-100 text-emerald-700',
@@ -80,6 +81,13 @@ export default function MaterialDetallePage() {
           </div>
         </div>
 
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={`/inventario/${id}/editar`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </Link>
+          </Button>
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetTrigger asChild>
             <Button>
@@ -99,6 +107,7 @@ export default function MaterialDetallePage() {
             </div>
           </SheetContent>
         </Sheet>
+        </div>
       </div>
 
       {/* Tarjetas de stock */}

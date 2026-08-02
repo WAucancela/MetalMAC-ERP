@@ -157,6 +157,16 @@ export function useUnidades() {
   });
 }
 
+export function useCategorias() {
+  const { token } = useAuth();
+  return useQuery({
+    queryKey: ['categorias'],
+    queryFn: () => apiFetch<any[]>('/api/categorias', token!),
+    staleTime: 30 * 60_000, // catálogo estático, 30 min
+    enabled: !!token,
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function useRegistrarMovimiento() {

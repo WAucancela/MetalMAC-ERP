@@ -1,17 +1,19 @@
 /**
- * /inventario/nuevo — Formulario para crear un material.
+ * /inventario/[id]/editar — Formulario para editar un material existente.
  */
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CreateMaterialSchema, type CreateMaterialInput } from '@/lib/validations/inventario.schema';
-import { useCrearMaterial, useCategorias, useUnidades } from '@/hooks/useInventario';
+import { UpdateMaterialSchema, type UpdateMaterialInput } from '@/lib/validations/inventario.schema';
+import { useMaterial, useActualizarMaterial, useCategorias, useUnidades } from '@/hooks/useInventario';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -28,31 +30,69 @@ const TIPOS = [
 
 const GRADOS = ['AISI 304', 'AISI 316', 'A36', 'A572', 'ASTM A53', 'Otro'];
 
-export default function NuevoMaterialPage() {
+export default function EditarMaterialPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { mutateAsync, isPending } = useCrearMaterial();
+
+  const { data, isLoading, isError } = useMaterial(id);
+  const { mutateAsync, isPending } = useActualizarMaterial(id);
   const { data: categorias = [] } = useCategorias();
   const { data: unidades = [] } = useUnidades();
 
   const {
-    register, handleSubmit, setValue, watch,
+    register, handleSubmit, setValue, watch, reset,
     formState: { errors },
-  } = useForm<CreateMaterialInput>({
-    resolver: zodResolver(CreateMaterialSchema),
-    defaultValues: { activo: true, costoUnitario: 0, especificaciones: {} },
+  } = useForm<UpdateMaterialInput>({
+    resolver: zodResolver(UpdateMaterialSchema),
   });
 
   const tipo = watch('tipo');
 
-  const onSubmit = async (data: CreateMaterialInput) => {
+  // Precarga el formulario una vez que llega el material.
+  useEffect(() => {
+    if (!data?.material) return;
+    const m = data.material;
+    reset({
+      codigoInterno: m.codigoInterno,
+      nombre: m.nombre,
+      descripcion: m.descripcion,
+      tipo: m.tipo,
+      categoriaId: m.categoriaId,
+      grado: m.grado,
+      unidadBaseId: m.unidadBaseId,
+      costoUnitario: m.costoUnitario,
+      especificaciones: m.especificaciones ?? {},
+      activo: m.activo,
+    });
+  }, [data, reset]);
+
+  const onSubmit = async (input: UpdateMaterialInput) => {
     try {
-      const result = await mutateAsync(data);
-      toast.success('Material creado correctamente');
-      router.push(`/inventario/${(result as { id: string }).id}`);
+      await mutateAsync(input);
+      toast.success('Material actualizado correctamente');
+      router.push(`/inventario/${id}`);
     } catch (err) {
-      toast.error((err as Error).message ?? 'Error al crear material');
+      toast.error((err as Error).message ?? 'Error al actualizar material');
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <p className="text-zinc-500">Material no encontrado.</p>
+        <Button variant="outline" onClick={() => router.back()}>Volver</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -62,8 +102,8 @@ export default function NuevoMaterialPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Nuevo material</h1>
-          <p className="text-sm text-zinc-500">Complete los datos del material a registrar</p>
+          <h1 className="text-2xl font-semibold text-zinc-900">Editar material</h1>
+          <p className="text-sm text-zinc-500">{data.material.codigoInterno}</p>
         </div>
       </div>
 
@@ -76,17 +116,14 @@ export default function NuevoMaterialPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Código interno <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="ACX-304-3MM-1220X2440"
-                {...register('codigoInterno')}
-              />
+              <Input placeholder="ACX-304-3MM-1220X2440" {...register('codigoInterno')} />
               {errors.codigoInterno && (
                 <p className="text-xs text-red-500">{errors.codigoInterno.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
               <Label>Tipo <span className="text-red-500">*</span></Label>
-              <Select onValueChange={(v) => setValue('tipo', v as CreateMaterialInput['tipo'])}>
+              <Select value={tipo} onValueChange={(v) => setValue('tipo', v as UpdateMaterialInput['tipo'])}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
                 <SelectContent>
                   {TIPOS.map((t) => (
@@ -106,11 +143,7 @@ export default function NuevoMaterialPage() {
 
           <div className="space-y-1.5">
             <Label>Descripción</Label>
-            <Textarea
-              rows={2}
-              placeholder="Detalles adicionales del material..."
-              {...register('descripcion')}
-            />
+            <Textarea rows={2} placeholder="Detalles adicionales del material..." {...register('descripcion')} />
           </div>
         </fieldset>
 
@@ -122,7 +155,7 @@ export default function NuevoMaterialPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Categoría <span className="text-red-500">*</span></Label>
-              <Select onValueChange={(v) => setValue('categoriaId', v)}>
+              <Select value={watch('categoriaId')} onValueChange={(v) => setValue('categoriaId', v)}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar categoría..." /></SelectTrigger>
                 <SelectContent>
                   {categorias.map((c: any) => (
@@ -134,7 +167,7 @@ export default function NuevoMaterialPage() {
             </div>
             <div className="space-y-1.5">
               <Label>Unidad base <span className="text-red-500">*</span></Label>
-              <Select onValueChange={(v) => setValue('unidadBaseId', v)}>
+              <Select value={watch('unidadBaseId')} onValueChange={(v) => setValue('unidadBaseId', v)}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar unidad..." /></SelectTrigger>
                 <SelectContent>
                   {unidades.map((u: any) => (
@@ -148,7 +181,7 @@ export default function NuevoMaterialPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Grado / norma</Label>
-              <Select onValueChange={(v) => setValue('grado', v)}>
+              <Select value={watch('grado') || undefined} onValueChange={(v) => setValue('grado', v)}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar grado..." /></SelectTrigger>
                 <SelectContent>
                   {GRADOS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
@@ -158,10 +191,7 @@ export default function NuevoMaterialPage() {
             <div className="space-y-1.5">
               <Label>Costo unitario (USD) <span className="text-red-500">*</span></Label>
               <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
+                type="number" step="0.01" min="0" placeholder="0.00"
                 {...register('costoUnitario', { valueAsNumber: true })}
               />
               {errors.costoUnitario && (
@@ -240,7 +270,7 @@ export default function NuevoMaterialPage() {
             Cancelar
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Guardando...' : 'Crear material'}
+            {isPending ? 'Guardando...' : 'Guardar cambios'}
           </Button>
         </div>
       </form>
