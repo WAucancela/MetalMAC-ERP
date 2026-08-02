@@ -40,7 +40,9 @@ export function calcularAntiguedad(fechaVencimiento: string | null, hoy: Date): 
   const vencimiento = new Date(fechaVencimiento + 'T00:00:00');
   const diasVencido = Math.floor((hoy.getTime() - vencimiento.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diasVencido < 0) return 'VIGENTE';
+  // El día del vencimiento en sí todavía cuenta como vigente — "vencido" empieza
+  // el día siguiente.
+  if (diasVencido <= 0) return 'VIGENTE';
   if (diasVencido <= 30) return 'VENCIDO_0_30';
   if (diasVencido <= 60) return 'VENCIDO_31_60';
   if (diasVencido <= 90) return 'VENCIDO_61_90';

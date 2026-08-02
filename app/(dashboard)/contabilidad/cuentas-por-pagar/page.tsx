@@ -13,6 +13,7 @@ import { ChevronLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExportButton } from '@/components/ui/ExportButton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AntiguedadBadge } from '@/components/contabilidad/AntiguedadBadge';
 import { RegistrarPagoForm } from '@/components/contabilidad/RegistrarPagoForm';
@@ -71,11 +72,14 @@ export default function CuentasPorPagarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/contabilidad"><ChevronLeft className="h-4 w-4" /></Link>
-        </Button>
-        <h1 className="text-2xl font-semibold">Cuentas por pagar</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/contabilidad"><ChevronLeft className="h-4 w-4" /></Link>
+          </Button>
+          <h1 className="text-2xl font-semibold">Cuentas por pagar</h1>
+        </div>
+        <ExportButton href="/api/reportes/cuentas-por-pagar?format=csv" filename="cuentas_por_pagar.csv" />
       </div>
 
       {isLoading ? (

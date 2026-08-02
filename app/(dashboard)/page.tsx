@@ -16,7 +16,7 @@ import Link from 'next/link';
 import {
   Package, Factory, FileText, FolderOpen,
   AlertTriangle, CheckCircle2, Clock, RefreshCw,
-  TrendingUp, Loader2,
+  TrendingUp, Loader2, Landmark, ArrowDownToLine, ArrowUpFromLine,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { inventario, produccion, contabilidad, proyectos } = kpis.data;
+  const { inventario, produccion, contabilidad, proyectos, cuentasPorCobrar, cuentasPorPagar, tesoreria } = kpis.data;
   const actualizadoEn = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   return (
@@ -152,6 +152,41 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* ── Tercera fila KPIs — tesorería ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard
+          title="Saldo caja + bancos"
+          value={`$${(tesoreria.saldoCajaChica + tesoreria.saldoBancos).toFixed(2)}`}
+          subtitle={`$${tesoreria.saldoBancos.toFixed(2)} en bancos`}
+          icon={Landmark}
+          variant="default"
+          href="/contabilidad/bancos"
+        />
+        <KPICard
+          title="Por cobrar"
+          value={`$${(cuentasPorCobrar.totalPendiente / 1000).toFixed(1)}k`}
+          subtitle={`$${cuentasPorCobrar.vencido.toFixed(2)} vencido`}
+          icon={ArrowDownToLine}
+          variant={cuentasPorCobrar.vencido > 0 ? 'warning' : 'success'}
+          href="/contabilidad/cuentas-por-cobrar"
+        />
+        <KPICard
+          title="Por pagar"
+          value={`$${(cuentasPorPagar.totalPendiente / 1000).toFixed(1)}k`}
+          subtitle={`$${cuentasPorPagar.vencido.toFixed(2)} vencido`}
+          icon={ArrowUpFromLine}
+          variant={cuentasPorPagar.vencido > 0 ? 'danger' : 'success'}
+          href="/contabilidad/cuentas-por-pagar"
+        />
+        <KPICard
+          title="Caja chica"
+          value={`$${tesoreria.saldoCajaChica.toFixed(2)}`}
+          icon={Landmark}
+          variant="default"
+          href="/contabilidad/caja-chica"
+        />
+      </div>
+
       {/* ── Secciones de detalle ───────────────────────────────────────────── */}
       <div className="grid md:grid-cols-2 gap-6">
 
@@ -219,6 +254,70 @@ export default function DashboardPage() {
                   + {contabilidad.facturasPendientes - 5} más
                 </p>
               )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Tesorería: cuentas vencidas + saldo por banco ─────────────────────── */}
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="rounded-lg border p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Por cobrar vencido</h2>
+            <Link href="/contabilidad/cuentas-por-cobrar" className="text-xs text-primary hover:underline">Ver todo</Link>
+          </div>
+          {cuentasPorCobrar.facturasVencidas.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Sin vencidas
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {cuentasPorCobrar.facturasVencidas.map((f) => (
+                <div key={f.id} className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[140px]">{f.clienteNombre}</span>
+                  <span className="font-semibold tabular-nums">${f.saldo.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Por pagar vencido</h2>
+            <Link href="/contabilidad/cuentas-por-pagar" className="text-xs text-primary hover:underline">Ver todo</Link>
+          </div>
+          {cuentasPorPagar.facturasVencidas.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Sin vencidas
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {cuentasPorPagar.facturasVencidas.map((f) => (
+                <div key={f.id} className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[140px]">{f.proveedorNombre ?? '—'}</span>
+                  <span className="font-semibold tabular-nums">${f.saldo.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Bancos</h2>
+            <Link href="/contabilidad/bancos" className="text-xs text-primary hover:underline">Ver todo</Link>
+          </div>
+          {tesoreria.cuentas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin cuentas bancarias registradas.</p>
+          ) : (
+            <div className="space-y-2">
+              {tesoreria.cuentas.map((c) => (
+                <div key={`${c.banco}-${c.numeroCuenta}`} className="flex items-center justify-between text-sm">
+                  <span className="truncate max-w-[140px]">{c.banco}</span>
+                  <span className="font-semibold tabular-nums">${c.saldo.toFixed(2)}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -41,6 +41,21 @@ export interface DashboardKPIs {
         costoReal: number;
       }>;
     };
+    cuentasPorCobrar: {
+      totalPendiente: number;
+      vencido: number;
+      facturasVencidas: Array<{ id: string; numeroFactura: string; clienteNombre: string; saldo: number; antiguedad: string }>;
+    };
+    cuentasPorPagar: {
+      totalPendiente: number;
+      vencido: number;
+      facturasVencidas: Array<{ id: string; numeroFactura: string; proveedorNombre: string | null; saldo: number; antiguedad: string }>;
+    };
+    tesoreria: {
+      saldoCajaChica: number;
+      saldoBancos: number;
+      cuentas: Array<{ banco: string; numeroCuenta: string; saldo: number }>;
+    };
   };
 }
 

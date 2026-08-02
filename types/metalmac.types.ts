@@ -452,20 +452,6 @@ export interface OrdenProduccion {
 }
 
 // ─────────────────────────────────────────────
-// Dashboard KPIs
-// ─────────────────────────────────────────────
-
-export interface DashboardKPIs {
-  cajaReal: number;
-  ivaProjectado: number;
-  eficienciaMerma: number;
-  alertasStockBajo: Material[];
-  margenBruto: number;
-  ordenesPendientes: number;
-  gastosProyectosMes: number;
-}
-
-// ─────────────────────────────────────────────
 // SRI: Resultado del parseo de XML (fast-xml-parser)
 // ─────────────────────────────────────────────
 
