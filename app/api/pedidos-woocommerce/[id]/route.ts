@@ -14,6 +14,9 @@ import { getAuthenticatedUser } from '@/app/api/_helpers';
 import { ActualizarEstadoRevisionSchema } from '@/lib/validations/pedidos-woocommerce.schema';
 import { mapPedidoWooCommerceRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: { id: string } }
 
 function puedeRevisarPedidos(rol: string): boolean {

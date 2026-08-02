@@ -9,6 +9,9 @@ import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { mapFacturaCompraRow } from '@/lib/services/mappers';
 import { z } from 'zod';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 const PatchSchema = z.object({
   estado: z.enum(['PENDIENTE', 'PROCESADA', 'ANULADA']),
 });

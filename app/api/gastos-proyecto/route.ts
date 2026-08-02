@@ -12,6 +12,9 @@ import {
 import { GastoSchema, GastosQuerySchema } from '@/lib/validations/proyectos.schema';
 import { mapGastoProyectoRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const user = await getAuthenticatedUser(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

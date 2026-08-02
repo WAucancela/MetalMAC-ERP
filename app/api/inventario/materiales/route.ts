@@ -14,6 +14,9 @@ import {
 } from '@/app/api/_helpers';
 import { mapMaterialRow, mapStockRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 // GET — lista materiales + stock actual
 export async function GET(request: NextRequest) {
   const user = await getAuthenticatedUser(request);

@@ -10,6 +10,9 @@ import {
 } from '@/app/api/_helpers';
 import { mapStockRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const user = await getAuthenticatedUser(request);
   if (!user) return unauthorized();

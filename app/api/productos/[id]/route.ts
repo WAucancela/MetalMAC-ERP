@@ -11,6 +11,9 @@ import { mapProductoRow } from '@/lib/services/mappers';
 import type { BOM, LineaBOM, OperacionBOM } from '@/types/metalmac.types';
 import type { Database } from '@/types/supabase.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 type ProductoUpdate = Database['public']['Tables']['productos']['Update'];
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {

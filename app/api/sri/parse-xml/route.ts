@@ -10,6 +10,9 @@
 
 import { NextResponse } from 'next/server';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
+
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
 import {
   parsearXML,
   XMLInvalidoError,

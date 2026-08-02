@@ -11,6 +11,9 @@ import { ProveedorSchema } from '@/lib/validations/sri.schema';
 import { mapProveedorRow } from '@/lib/services/mappers';
 import type { Database } from '@/types/supabase.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 type ProveedorUpdate = Database['public']['Tables']['proveedores']['Update'];
 
 export async function GET(

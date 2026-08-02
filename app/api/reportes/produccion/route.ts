@@ -14,6 +14,9 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
 import type { EstadoOrdenProduccion } from '@/types/metalmac.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 function escapeCsv(value: unknown): string {
   const str = value === null || value === undefined ? '' : String(value);
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {

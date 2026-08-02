@@ -13,6 +13,9 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
 import { ConvertirLineaPedidoSchema } from '@/lib/validations/pedidos-woocommerce.schema';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: { id: string; lineaId: string } }
 
 function puedeRevisarPedidos(rol: string): boolean {

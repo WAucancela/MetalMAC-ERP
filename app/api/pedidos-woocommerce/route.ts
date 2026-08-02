@@ -13,6 +13,9 @@ import {
 import { PedidosWooCommerceQuerySchema } from '@/lib/validations/pedidos-woocommerce.schema';
 import { mapPedidoWooCommerceRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 /** Revisar la bandeja de pedidos es un permiso de producción, no el `canWrite` genérico
  *  (GERENTE|BODEGUERO) de _helpers.ts, que corresponde a otros módulos. */
 function puedeRevisarPedidos(rol: string): boolean {

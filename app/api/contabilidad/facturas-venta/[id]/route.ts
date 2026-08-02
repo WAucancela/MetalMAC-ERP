@@ -15,6 +15,9 @@ import { MarcarEmitidaSchema } from '@/lib/validations/ventas.schema';
 import { mapFacturaVentaRow } from '@/lib/services/mappers';
 import { z } from 'zod';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 const AnularSchema = z.object({ estado: z.literal('ANULADA') });
 
 interface RouteParams { params: { id: string } }

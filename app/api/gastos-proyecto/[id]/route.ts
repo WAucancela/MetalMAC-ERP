@@ -12,6 +12,9 @@ import { ActualizarGastoSchema } from '@/lib/validations/proyectos.schema';
 import { mapGastoProyectoRow } from '@/lib/services/mappers';
 import type { Database } from '@/types/supabase.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: { id: string } }
 type GastoUpdate = Database['public']['Tables']['gastos_proyecto']['Update'];
 

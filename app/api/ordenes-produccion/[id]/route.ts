@@ -26,6 +26,9 @@ import {
 } from '@/lib/services/bom.service';
 import { mapOrdenProduccionRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 interface RouteParams { params: { id: string } }
 
 // ─────────────────────────────────────────────

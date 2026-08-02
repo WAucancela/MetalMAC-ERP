@@ -17,6 +17,9 @@ import { WooCommerceWebhookPayloadSchema } from '@/lib/validations/pedidos-wooco
 import { verificarFirmaWebhook, calcularLineasAInsertar } from '@/lib/services/woocommerce.service';
 import type { Json } from '@/types/supabase.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
 

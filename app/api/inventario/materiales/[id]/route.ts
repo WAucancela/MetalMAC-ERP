@@ -13,6 +13,9 @@ import {
 import { mapMaterialRow, mapStockRow, mapMovimientoRow } from '@/lib/services/mappers';
 import type { Database } from '@/types/supabase.types';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 type RouteContext = { params: { id: string } };
 type MaterialUpdate = Database['public']['Tables']['materiales']['Update'];
 

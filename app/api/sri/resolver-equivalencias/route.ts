@@ -12,6 +12,9 @@ import { getAuthenticatedUser } from '@/app/api/_helpers';
 import { ResolverEquivalenciasSchema } from '@/lib/validations/sri.schema';
 import { resolverLineasFactura } from '@/lib/services/equivalencias.service';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: Request) {
   const user = await getAuthenticatedUser(request);
   if (!user) {

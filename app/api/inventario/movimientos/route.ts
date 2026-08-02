@@ -21,6 +21,9 @@ import {
 } from '@/types/metalmac.types';
 import { mapMovimientoRow } from '@/lib/services/mappers';
 
+// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
+export const dynamic = 'force-dynamic';
+
 // POST — registrar movimiento vía RPC
 export async function POST(request: NextRequest) {
   const user = await getAuthenticatedUser(request);
