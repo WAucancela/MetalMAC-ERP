@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EstadoOrdenBadge } from '@/components/produccion/EstadoOrdenBadge';
+import { OperacionesTable } from '@/components/produccion/OperacionesTable';
 import { useOrden, useActualizarEstadoOrden } from '@/hooks/useOrdenes';
 
 function parseDate(ts: string | null | undefined): Date | null {
@@ -167,6 +168,15 @@ export default function OrdenDetallePage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {/* Operaciones */}
+      {orden.operaciones?.length > 0 && (
+        <OperacionesTable
+          ordenId={orden.id}
+          operaciones={orden.operaciones}
+          editable={orden.estado === 'EN_PROCESO'}
+        />
       )}
 
       {/* Notas */}

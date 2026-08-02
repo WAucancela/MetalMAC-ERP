@@ -50,6 +50,8 @@ export type EstadoOrdenProduccion =
 
 export type TipoOperacion = 'LASER' | 'SOLDADURA' | 'DOBLADO' | 'ENSAMBLE';
 
+export type EstadoOperacionProduccion = 'PENDIENTE' | 'COMPLETADA';
+
 export type EstadoRevisionPedido =
   | 'PENDIENTE'
   | 'EN_REVISION'
@@ -382,6 +384,27 @@ export interface MaterialReservado {
   costoUnitarioAlMomento: number;
 }
 
+export interface Operario {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  creadoEn: string;
+}
+
+export interface OrdenOperacion {
+  id: string;
+  ordenId: string;
+  orden: number;
+  tipo: TipoOperacion;
+  minutosPlanificados: number;
+  costoPorMinuto: number;
+  operarioId: string | null;
+  operarioNombre?: string | null;
+  estado: EstadoOperacionProduccion;
+  minutosReales: number | null;
+  completadaEn: string | null;
+}
+
 export interface OrdenProduccion {
   id: string;
   codigo: string;             // "OP-2025-0001"
@@ -396,6 +419,7 @@ export interface OrdenProduccion {
   proyectoId: string | null;
   notas: string;
   materialesReservados: MaterialReservado[];
+  operaciones: OrdenOperacion[];
   creadoEn: string;
 }
 

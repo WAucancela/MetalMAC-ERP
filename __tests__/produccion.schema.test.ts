@@ -11,6 +11,11 @@ import {
   CrearOrdenSchema,
   ActualizarEstadoOrdenSchema,
   OrdenesQuerySchema,
+  OperarioSchema,
+  ActualizarOperarioSchema,
+  AsignarOperacionSchema,
+  CompletarOperacionSchema,
+  OperariosQuerySchema,
 } from '../lib/validations/produccion.schema';
 
 describe('ProductoSchema', () => {
@@ -133,5 +138,66 @@ describe('OrdenesQuerySchema', () => {
 
   it('rechaza un estado inválido', () => {
     expect(OrdenesQuerySchema.safeParse({ estado: 'PAUSADA' }).success).toBe(false);
+  });
+});
+
+describe('OperarioSchema', () => {
+  it('acepta un operario válido y aplica default activo=true', () => {
+    const result = OperarioSchema.parse({ nombre: 'Juan Pérez' });
+    expect(result.activo).toBe(true);
+  });
+
+  it('rechaza nombre muy corto', () => {
+    expect(OperarioSchema.safeParse({ nombre: 'J' }).success).toBe(false);
+  });
+});
+
+describe('ActualizarOperarioSchema', () => {
+  it('acepta un update parcial de un solo campo', () => {
+    expect(ActualizarOperarioSchema.safeParse({ activo: false }).success).toBe(true);
+  });
+
+  it('acepta un objeto vacío (nada que cambiar)', () => {
+    expect(ActualizarOperarioSchema.safeParse({}).success).toBe(true);
+  });
+});
+
+describe('AsignarOperacionSchema', () => {
+  it('acepta un operarioId válido', () => {
+    expect(
+      AsignarOperacionSchema.safeParse({ operarioId: '123e4567-e89b-12d3-a456-426614174000' }).success,
+    ).toBe(true);
+  });
+
+  it('acepta null para desasignar', () => {
+    expect(AsignarOperacionSchema.safeParse({ operarioId: null }).success).toBe(true);
+  });
+
+  it('rechaza un operarioId que no es UUID', () => {
+    expect(AsignarOperacionSchema.safeParse({ operarioId: 'no-es-uuid' }).success).toBe(false);
+  });
+});
+
+describe('CompletarOperacionSchema', () => {
+  it('acepta estado COMPLETADA con minutosReales', () => {
+    expect(CompletarOperacionSchema.safeParse({ estado: 'COMPLETADA', minutosReales: 12.5 }).success).toBe(true);
+  });
+
+  it('rechaza minutosReales negativo', () => {
+    expect(CompletarOperacionSchema.safeParse({ estado: 'COMPLETADA', minutosReales: -1 }).success).toBe(false);
+  });
+
+  it('rechaza un estado distinto de COMPLETADA', () => {
+    expect(CompletarOperacionSchema.safeParse({ estado: 'PENDIENTE', minutosReales: 5 }).success).toBe(false);
+  });
+});
+
+describe('OperariosQuerySchema', () => {
+  it('deja activo sin definir si no se pasa', () => {
+    expect(OperariosQuerySchema.parse({}).activo).toBeUndefined();
+  });
+
+  it('convierte el string "true" a booleano', () => {
+    expect(OperariosQuerySchema.parse({ activo: 'true' }).activo).toBe(true);
   });
 });

@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -678,6 +683,27 @@ export type Database = {
           },
         ]
       }
+      operarios: {
+        Row: {
+          activo: boolean
+          creado_en: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          creado_en?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          creado_en?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
       orden_materiales_reservados: {
         Row: {
           cantidad_reservada: number
@@ -710,6 +736,63 @@ export type Database = {
           },
           {
             foreignKeyName: "orden_materiales_reservados_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orden_operaciones: {
+        Row: {
+          completada_en: string | null
+          completada_por: string | null
+          costo_por_minuto: number
+          estado: Database["public"]["Enums"]["estado_operacion_produccion"]
+          id: string
+          minutos_planificados: number
+          minutos_reales: number | null
+          operario_id: string | null
+          orden: number
+          orden_id: string
+          tipo: Database["public"]["Enums"]["tipo_operacion"]
+        }
+        Insert: {
+          completada_en?: string | null
+          completada_por?: string | null
+          costo_por_minuto: number
+          estado?: Database["public"]["Enums"]["estado_operacion_produccion"]
+          id?: string
+          minutos_planificados: number
+          minutos_reales?: number | null
+          operario_id?: string | null
+          orden: number
+          orden_id: string
+          tipo: Database["public"]["Enums"]["tipo_operacion"]
+        }
+        Update: {
+          completada_en?: string | null
+          completada_por?: string | null
+          costo_por_minuto?: number
+          estado?: Database["public"]["Enums"]["estado_operacion_produccion"]
+          id?: string
+          minutos_planificados?: number
+          minutos_reales?: number | null
+          operario_id?: string | null
+          orden?: number
+          orden_id?: string
+          tipo?: Database["public"]["Enums"]["tipo_operacion"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orden_operaciones_operario_id_fkey"
+            columns: ["operario_id"]
+            isOneToOne: false
+            referencedRelation: "operarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orden_operaciones_orden_id_fkey"
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
@@ -1375,6 +1458,7 @@ export type Database = {
         | "OTRO"
       estado_factura_compra: "PENDIENTE" | "PROCESADA" | "ANULADA"
       estado_factura_venta: "BORRADOR" | "EMITIDA" | "ANULADA"
+      estado_operacion_produccion: "PENDIENTE" | "COMPLETADA"
       estado_orden_produccion:
         | "BORRADOR"
         | "EN_PROCESO"
@@ -1555,6 +1639,7 @@ export const Constants = {
       ],
       estado_factura_compra: ["PENDIENTE", "PROCESADA", "ANULADA"],
       estado_factura_venta: ["BORRADOR", "EMITIDA", "ANULADA"],
+      estado_operacion_produccion: ["PENDIENTE", "COMPLETADA"],
       estado_orden_produccion: [
         "BORRADOR",
         "EN_PROCESO",
@@ -1567,6 +1652,12 @@ export const Constants = {
         "PAUSADO",
         "COMPLETADO",
         "CANCELADO",
+      ],
+      estado_revision_pedido: [
+        "PENDIENTE",
+        "EN_REVISION",
+        "CONVERTIDO",
+        "RECHAZADO",
       ],
       rol_usuario: ["GERENTE", "BODEGUERO", "PRODUCCION", "CONTABILIDAD"],
       sri_estado_tramite: [
@@ -1596,4 +1687,3 @@ export const Constants = {
     },
   },
 } as const
-

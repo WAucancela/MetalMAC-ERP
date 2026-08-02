@@ -8,7 +8,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus } from 'lucide-react';
+import { Plus, Users } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ExportButton } from '@/components/ui/ExportButton';
@@ -46,6 +46,11 @@ export default function ProduccionPage() {
             label="Exportar CSV (30d)"
             filename="produccion.csv"
           />
+          <Button asChild variant="outline">
+            <Link href="/produccion/operarios">
+              <Users className="mr-2 h-4 w-4" /> Operarios
+            </Link>
+          </Button>
           <Button asChild>
             <Link href="/produccion/nueva">
               <Plus className="mr-2 h-4 w-4" /> Nueva Orden

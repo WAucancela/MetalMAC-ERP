@@ -42,7 +42,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   try {
     const { data: orden, error } = await supabaseAdmin
       .from('ordenes_produccion')
-      .select('*, orden_materiales_reservados(*), productos(id, nombre, codigo)')
+      .select('*, orden_materiales_reservados(*), orden_operaciones(*, operarios(nombre)), productos(id, nombre, codigo)')
       .eq('id', params.id)
       .maybeSingle();
     if (error) throw error;
@@ -50,7 +50,10 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({
       ok: true,
-      data: { ...mapOrdenProduccionRow(orden, orden.orden_materiales_reservados), producto: orden.productos },
+      data: {
+        ...mapOrdenProduccionRow(orden, orden.orden_materiales_reservados, orden.orden_operaciones),
+        producto: orden.productos,
+      },
     });
   } catch (e) {
     console.error(`[GET /api/ordenes-produccion/${params.id}]`, e);
@@ -132,6 +135,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
       // Reservar materiales — función plpgsql con SELECT ... FOR UPDATE (todo-o-nada)
       await reservarMaterialesBOM(orden.producto_id, orden.cantidad, params.id, user.uid);
+
+      // Snapshot de las operaciones del BOM vigente — si el BOM cambia después,
+      // esta OP ya en curso no se ve afectada (mismo criterio que materiales reservados).
+      if (bom.operaciones.length > 0) {
+        const { error: opsError } = await supabaseAdmin.from('orden_operaciones').insert(
+          bom.operaciones.map((op, i) => ({
+            orden_id: params.id,
+            orden: i + 1,
+            tipo: op.tipo,
+            minutos_planificados: op.minutos,
+            costo_por_minuto: op.costoPorMinuto,
+          })),
+        );
+        if (opsError) throw opsError;
+      }
 
       await supabaseAdmin.from('ordenes_produccion').update({
         estado: 'EN_PROCESO',

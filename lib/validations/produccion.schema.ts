@@ -70,6 +70,38 @@ export const ActualizarEstadoOrdenSchema = z.object({
 export type ActualizarEstadoOrdenInput = z.infer<typeof ActualizarEstadoOrdenSchema>;
 
 // ─────────────────────────────────────────────
+// Planificación de planta — Operarios y Operaciones de OP
+// ─────────────────────────────────────────────
+
+export const OperarioSchema = z.object({
+  nombre: z.string().min(2).max(200),
+  activo: z.boolean().default(true),
+});
+
+export type OperarioInput = z.infer<typeof OperarioSchema>;
+
+export const ActualizarOperarioSchema = OperarioSchema.partial();
+
+export type ActualizarOperarioInput = z.infer<typeof ActualizarOperarioSchema>;
+
+export const AsignarOperacionSchema = z.object({
+  operarioId: z.string().uuid().nullable(),
+});
+
+export type AsignarOperacionInput = z.infer<typeof AsignarOperacionSchema>;
+
+export const CompletarOperacionSchema = z.object({
+  estado: z.literal('COMPLETADA'),
+  minutosReales: z.number().nonnegative(),
+});
+
+export type CompletarOperacionInput = z.infer<typeof CompletarOperacionSchema>;
+
+export const ActualizarOperacionSchema = z.union([AsignarOperacionSchema, CompletarOperacionSchema]);
+
+export type ActualizarOperacionInput = z.infer<typeof ActualizarOperacionSchema>;
+
+// ─────────────────────────────────────────────
 // Query filters
 // ─────────────────────────────────────────────
 
@@ -93,3 +125,9 @@ export const ProductosQuerySchema = z.object({
 });
 
 export type ProductosQuery = z.infer<typeof ProductosQuerySchema>;
+
+export const OperariosQuerySchema = z.object({
+  activo: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+});
+
+export type OperariosQuery = z.infer<typeof OperariosQuerySchema>;

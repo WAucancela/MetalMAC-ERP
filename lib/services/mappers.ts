@@ -8,7 +8,7 @@ import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   GastoProyecto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
-  FacturaVenta, LineaFacturaVenta,
+  FacturaVenta, LineaFacturaVenta, Operario, OrdenOperacion,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -18,6 +18,10 @@ type ProductoRow = Database['public']['Tables']['productos']['Row'];
 type ProveedorRow = Database['public']['Tables']['proveedores']['Row'];
 type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
 type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
+type OperarioRow = Database['public']['Tables']['operarios']['Row'];
+type OrdenOperacionRow = Database['public']['Tables']['orden_operaciones']['Row'] & {
+  operarios?: Pick<OperarioRow, 'nombre'> | null;
+};
 type ProyectoRow = Database['public']['Tables']['proyectos']['Row'];
 type GastoProyectoRow = Database['public']['Tables']['gastos_proyecto']['Row'];
 type FacturaCompraRow = Database['public']['Tables']['facturas_compra']['Row'];
@@ -92,6 +96,7 @@ export function mapProveedorRow(row: ProveedorRow): Proveedor {
 export function mapOrdenProduccionRow(
   row: OrdenRow,
   materialesReservados: OrdenMaterialReservadoRow[] = [],
+  operaciones: OrdenOperacionRow[] = [],
 ): OrdenProduccion {
   return {
     id: row.id,
@@ -111,7 +116,35 @@ export function mapOrdenProduccionRow(
       cantidadReservada: Number(mr.cantidad_reservada),
       costoUnitarioAlMomento: Number(mr.costo_unitario_al_momento),
     })),
+    operaciones: [...operaciones]
+      .sort((a, b) => a.orden - b.orden)
+      .map(mapOrdenOperacionRow),
     creadoEn: row.creado_en,
+  };
+}
+
+export function mapOperarioRow(row: OperarioRow): Operario {
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    activo: row.activo,
+    creadoEn: row.creado_en,
+  };
+}
+
+export function mapOrdenOperacionRow(row: OrdenOperacionRow): OrdenOperacion {
+  return {
+    id: row.id,
+    ordenId: row.orden_id,
+    orden: row.orden,
+    tipo: row.tipo,
+    minutosPlanificados: Number(row.minutos_planificados),
+    costoPorMinuto: Number(row.costo_por_minuto),
+    operarioId: row.operario_id,
+    operarioNombre: row.operarios?.nombre ?? null,
+    estado: row.estado,
+    minutosReales: row.minutos_reales === null ? null : Number(row.minutos_reales),
+    completadaEn: row.completada_en,
   };
 }
 
