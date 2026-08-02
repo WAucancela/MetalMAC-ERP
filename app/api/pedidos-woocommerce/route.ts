@@ -60,7 +60,17 @@ export async function GET(request: Request) {
         ? encodeCursor({ valor: last.recibido_en, id: last.id })
         : null;
 
-    return NextResponse.json({ ok: true, data: pedidos, nextCursor });
+    return NextResponse.json({
+      ok: true,
+      data: pedidos,
+      nextCursor,
+      __debug: {
+        estadoRevision,
+        rawRowCount: rows.length,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      },
+    });
   } catch (e) {
     console.error('[GET /api/pedidos-woocommerce]', e);
     return NextResponse.json({ error: 'Error al obtener pedidos' }, { status: 500 });
