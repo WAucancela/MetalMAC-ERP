@@ -110,7 +110,12 @@ export async function firmarXML(xmlSinFirmar: string, certificado: CertificadoEx
     {
       x509: [certificado.certificadoBase64Der],
       signingCertificate: certificado.certificadoBase64Der,
-      references: [{ uri: '', transforms: ['enveloped', 'exc-c14n'], hash: 'SHA-256' }],
+      // El SRI valida la firma buscando puntualmente una Reference con
+      // URI="#comprobante" que apunte al id del elemento raíz (id="comprobante"
+      // en el XML sin firmar) — un URI="" (documento completo, válido en XML-DSig
+      // genérico) no satisface esa validación puntual del SRI y devuelve
+      // "[39] FIRMA INVALIDA — El nodo [comprobante] no se encuentra firmado".
+      references: [{ uri: '#comprobante', transforms: ['enveloped', 'exc-c14n'], hash: 'SHA-256' }],
     },
   );
 
