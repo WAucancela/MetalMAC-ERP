@@ -19,6 +19,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
   SUBCONTRATO:    'Subcontrato',
   ADMINISTRATIVO: 'Administrativo',
   OTRO:           'Otro',
+  PRODUCCION:     'Producción',
 };
 
 interface Gasto {

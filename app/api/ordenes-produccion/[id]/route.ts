@@ -187,7 +187,33 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         actualizado_por: user.uid,
       }).eq('id', params.id);
 
-      return NextResponse.json({ ok: true, costoReal });
+      // Si la OP pertenece a un proyecto, se registra su costo real como un
+      // gasto — el trigger existente sobre `gastos` suma automáticamente a
+      // proyectos.costo_real, sin duplicar lógica de suma acá. Un fallo en
+      // este paso NO hace fallar la respuesta: la OP ya quedó completada y los
+      // materiales ya se consumieron, que es lo irreversible; la sincronización
+      // contable es secundaria y se puede resolver aparte si falla (mismo
+      // criterio que el bloque de RIDE/email en facturas-venta/[id]/emitir).
+      let gastoProyectoRegistrado = false;
+      if (orden.proyecto_id && costoReal > 0) {
+        try {
+          const { error: gastoError } = await supabaseAdmin.from('gastos').insert({
+            proyecto_id: orden.proyecto_id,
+            categoria: 'PRODUCCION',
+            descripcion: `Consumo de producción — ${orden.codigo}`,
+            monto: costoReal,
+            fecha: new Date().toISOString().slice(0, 10),
+            orden_id: params.id,
+            creado_por: user.uid,
+          });
+          if (gastoError) throw gastoError;
+          gastoProyectoRegistrado = true;
+        } catch (e) {
+          console.error(`[PATCH /api/ordenes-produccion/${params.id}] OP completada pero no se pudo registrar el gasto de producción en el proyecto`, e);
+        }
+      }
+
+      return NextResponse.json({ ok: true, costoReal, gastoProyectoRegistrado });
     }
 
     // ── EN_PROCESO → CANCELADA (liberar materiales) ──────────────────────────

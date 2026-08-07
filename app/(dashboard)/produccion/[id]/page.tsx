@@ -37,12 +37,18 @@ export default function OrdenDetallePage() {
 
   async function transicion(estado: 'EN_PROCESO' | 'COMPLETADA' | 'CANCELADA') {
     try {
-      await actualizarEstado.mutateAsync({ estado });
-      toast.success(
-        estado === 'EN_PROCESO' ? 'Orden iniciada — materiales reservados'
-        : estado === 'COMPLETADA' ? 'Orden completada — materiales consumidos'
-        : 'Orden cancelada — materiales liberados',
-      );
+      const resultado = await actualizarEstado.mutateAsync({ estado });
+      if (estado === 'EN_PROCESO') {
+        toast.success('Orden iniciada — materiales reservados');
+      } else if (estado === 'COMPLETADA') {
+        toast.success(
+          resultado?.gastoProyectoRegistrado
+            ? 'Orden completada — materiales consumidos y costo sincronizado al proyecto'
+            : 'Orden completada — materiales consumidos',
+        );
+      } else {
+        toast.success('Orden cancelada — materiales liberados');
+      }
     } catch (e: any) {
       toast.error(e.message ?? 'Error al actualizar estado');
     }

@@ -1854,6 +1854,7 @@ export type Database = {
         | "SUBCONTRATO"
         | "ADMINISTRATIVO"
         | "OTRO"
+        | "PRODUCCION"
       estado_factura_compra: "PENDIENTE" | "PROCESADA" | "ANULADA"
       estado_factura_venta: "BORRADOR" | "EMITIDA" | "ANULADA"
       estado_operacion_produccion: "PENDIENTE" | "COMPLETADA"
@@ -2041,6 +2042,7 @@ export const Constants = {
         "SUBCONTRATO",
         "ADMINISTRATIVO",
         "OTRO",
+        "PRODUCCION",
       ],
       estado_factura_compra: ["PENDIENTE", "PROCESADA", "ANULADA"],
       estado_factura_venta: ["BORRADOR", "EMITIDA", "ANULADA"],

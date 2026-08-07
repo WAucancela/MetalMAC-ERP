@@ -36,7 +36,7 @@ export type ProyectosQuery = z.infer<typeof ProyectosQuerySchema>;
 
 const CATEGORIAS_GASTO = [
   'MATERIALES', 'MANO_DE_OBRA', 'MAQUINARIA',
-  'TRANSPORTE', 'SUBCONTRATO', 'ADMINISTRATIVO', 'OTRO',
+  'TRANSPORTE', 'SUBCONTRATO', 'ADMINISTRATIVO', 'OTRO', 'PRODUCCION',
 ] as const;
 
 export const GastoSchema = z.object({

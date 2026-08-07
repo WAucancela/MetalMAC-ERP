@@ -67,7 +67,8 @@ export type CategoriaGasto =
   | 'TRANSPORTE'
   | 'SUBCONTRATO'
   | 'ADMINISTRATIVO'
-  | 'OTRO';
+  | 'OTRO'
+  | 'PRODUCCION'; // generado automáticamente al completar una OP vinculada a un proyecto
 
 // ─────────────────────────────────────────────
 // Catálogo: Unidades de Medida

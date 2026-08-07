@@ -20,6 +20,9 @@ const CATEGORIAS = [
   { value: 'SUBCONTRATO',   label: 'Subcontrato' },
   { value: 'ADMINISTRATIVO',label: 'Administrativo' },
   { value: 'OTRO',          label: 'Otro' },
+  // 'PRODUCCION' se excluye a propósito: la genera automáticamente el sistema
+  // al completar una OP con proyecto asociado (ver ordenes-produccion/[id]/route.ts),
+  // no es una categoría para cargar a mano.
 ] as const;
 
 interface Props {
