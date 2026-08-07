@@ -180,7 +180,6 @@ export function generarXMLFactura(
       <totalImpuesto>
         <codigo>2</codigo>
         <codigoPorcentaje>${IVA_TARIFA_PORCENTAJE}</codigoPorcentaje>
-        <tarifa>${IVA_TARIFA}</tarifa>
         <baseImponible>${factura.subtotalSinIva.toFixed(2)}</baseImponible>
         <valor>${factura.iva.toFixed(2)}</valor>
       </totalImpuesto>
