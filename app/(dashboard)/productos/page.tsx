@@ -18,10 +18,11 @@ import { useProductos } from '@/hooks/useProductos';
 export default function ProductosPage() {
   const [q, setQ]      = useState('');
   const [tipo, setTipo] = useState<'PRODUCTO_TERMINADO' | 'SEMIELABORADO' | ''>('');
+  const [estado, setEstado] = useState<'true' | 'false' | ''>('true');
 
   const { data: productos = [], isLoading } = useProductos({
     tipo: tipo || undefined,
-    activo: true,
+    activo: estado === '' ? undefined : estado === 'true',
     q: q || undefined,
   });
 
@@ -62,6 +63,21 @@ export default function ProductosPage() {
             </button>
           ))}
         </div>
+        <div className="flex gap-2">
+          {([['true', 'Activos'], ['false', 'Inactivos'], ['', 'Todos']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setEstado(value)}
+              className={`rounded-full px-3 py-1 text-sm border transition-colors ${
+                estado === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background border-input hover:bg-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tabla */}
@@ -87,6 +103,7 @@ export default function ProductosPage() {
               <TableHead>Tipo</TableHead>
               <TableHead className="w-24">Unidad venta</TableHead>
               <TableHead className="w-28 text-right">Precio venta</TableHead>
+              <TableHead className="w-20">Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -106,6 +123,11 @@ export default function ProductosPage() {
                 <TableCell className="text-sm">{p.unidadVenta}</TableCell>
                 <TableCell className="text-right tabular-nums text-sm">
                   ${p.precioVenta.toFixed(2)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={p.activo ? 'secondary' : 'outline'} className={p.activo ? '' : 'text-muted-foreground'}>
+                    {p.activo ? 'Activo' : 'Inactivo'}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}

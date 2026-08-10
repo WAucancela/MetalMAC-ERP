@@ -1318,18 +1318,21 @@ export type Database = {
       }
       perfiles: {
         Row: {
+          activo: boolean
           creado_en: string
           email: string
           id: string
           rol: Database["public"]["Enums"]["rol_usuario"]
         }
         Insert: {
+          activo?: boolean
           creado_en?: string
           email: string
           id: string
           rol: Database["public"]["Enums"]["rol_usuario"]
         }
         Update: {
+          activo?: boolean
           creado_en?: string
           email?: string
           id?: string

@@ -5,11 +5,17 @@
 'use client';
 
 import Link from 'next/link';
-import { ShieldCheck, Mail } from 'lucide-react';
+import { ShieldCheck, Mail, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const SECCIONES = [
+  {
+    href: '/configuracion/usuarios',
+    icon: Users,
+    titulo: 'Usuarios',
+    descripcion: 'Cuentas del taller: crear usuarios, asignar roles, activar/desactivar accesos.',
+  },
   {
     href: '/configuracion/certificado-firma',
     icon: ShieldCheck,

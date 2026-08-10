@@ -7,13 +7,13 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ChevronLeft, Package, Loader2 } from 'lucide-react';
+import { ChevronLeft, Package, Loader2, Pencil } from 'lucide-react';
 
 import { Button }  from '@/components/ui/button';
 import { Badge }   from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BOMTable } from '@/components/produccion/BOMTable';
-import { useProducto } from '@/hooks/useProductos';
+import { useProducto, useActualizarProducto } from '@/hooks/useProductos';
 import { useBOM } from '@/hooks/useBOM';
 
 // Para pasar al BOMTable necesitamos los catálogos de materiales y unidades
@@ -26,6 +26,7 @@ export default function ProductoDetallePage() {
   const { data: bomData, isLoading: loadingBOM } = useBOM(id);
   const { data: materiales = [] } = useMateriales({ activo: true });
   const { data: unidades = [] } = useUnidades();
+  const actualizarProducto = useActualizarProducto(id);
 
   if (loadingProducto) {
     return (
@@ -39,6 +40,15 @@ export default function ProductoDetallePage() {
 
   const producto = productoData?.producto;
   if (!producto) return <p className="text-sm text-muted-foreground">Producto no encontrado.</p>;
+
+  async function alternarActivo() {
+    try {
+      await actualizarProducto.mutateAsync({ activo: !producto.activo });
+      toast.success(producto.activo ? 'Producto desactivado' : 'Producto activado');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al actualizar el producto');
+    }
+  }
 
   // Mapear materiales para BOMTable
   const materialesOpciones = materiales.map((m: any) => ({
@@ -67,6 +77,9 @@ export default function ProductoDetallePage() {
             <Badge variant={producto.tipo === 'PRODUCTO_TERMINADO' ? 'default' : 'secondary'}>
               {producto.tipo === 'PRODUCTO_TERMINADO' ? 'Terminado' : 'Semielaborado'}
             </Badge>
+            <Badge variant={producto.activo ? 'secondary' : 'outline'} className={producto.activo ? '' : 'text-muted-foreground'}>
+              {producto.activo ? 'Activo' : 'Inactivo'}
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             Código: <span className="font-mono">{producto.codigo}</span>
@@ -79,11 +92,30 @@ export default function ProductoDetallePage() {
             <p className="text-sm mt-2">{producto.descripcion}</p>
           )}
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/produccion/nueva?productoId=${id}`}>
-            <Package className="mr-2 h-4 w-4" /> Nueva OP
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/produccion/nueva?productoId=${id}`}>
+              <Package className="mr-2 h-4 w-4" /> Nueva OP
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/productos/${id}/editar`}>
+              <Pencil className="mr-2 h-4 w-4" /> Editar
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={producto.activo ? 'text-destructive' : ''}
+            disabled={actualizarProducto.isPending}
+            onClick={alternarActivo}
+          >
+            {actualizarProducto.isPending
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : null}
+            {producto.activo ? 'Desactivar' : 'Activar'}
+          </Button>
+        </div>
       </div>
 
       {/* BOM */}
