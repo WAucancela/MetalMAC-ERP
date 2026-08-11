@@ -15,10 +15,9 @@ const config: Config = {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
-        brand: {
-          50:  '#f0f9ff',
-          500: '#0ea5e9',
-          900: '#0c4a6e',
+        spark: {
+          DEFAULT: 'hsl(var(--spark))',
+          foreground: 'hsl(var(--spark-foreground))',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

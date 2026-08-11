@@ -10,6 +10,7 @@
 import { useState, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { ThemeProvider } from 'next-themes';
 
 export function Providers({ children }: { children: ReactNode }) {
   // Crear el QueryClient dentro del componente para evitar compartir estado
@@ -28,18 +29,20 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          classNames: {
-            toast:       'rounded-lg border border-zinc-200 shadow-md',
-            title:       'text-sm font-medium text-zinc-900',
-            description: 'text-xs text-zinc-500',
-          },
-        }}
-      />
-    </QueryClientProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            classNames: {
+              toast:       'rounded-lg border border-border bg-card shadow-md',
+              title:       'text-sm font-medium text-card-foreground',
+              description: 'text-xs text-muted-foreground',
+            },
+          }}
+        />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

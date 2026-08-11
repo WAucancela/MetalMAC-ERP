@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,15 +42,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <div className="w-full max-w-sm space-y-6 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-6 overflow-hidden rounded-xl border border-border bg-card p-8 shadow-sm">
         {/* Logo */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900">
-            <span className="text-lg font-bold text-white">M</span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="rounded-lg bg-white p-2 shadow-sm">
+            <Image src="/logo.png" alt="MetalMAC" width={1088} height={960} className="h-16 w-auto" priority />
           </div>
-          <h1 className="text-xl font-semibold text-zinc-900">MetalMAC ERP</h1>
-          <p className="text-sm text-zinc-500">Ingresa con tu cuenta corporativa</p>
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-foreground">MetalMAC ERP</h1>
+            <p className="text-sm text-muted-foreground">Ingresa con tu cuenta corporativa</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -80,7 +83,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </p>
           )}
@@ -90,7 +93,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="text-center text-xs text-zinc-400">
+        <p className="text-center text-xs text-muted-foreground/70">
           ¿Olvidaste tu contraseña? Contacta al administrador.
         </p>
       </div>

@@ -2,28 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Paleta derivada del logo de MetalMAC: grafito oscuro del hexágono,
+ * azul acero de la franja inferior, y el "destello" celeste como acento
+ * de marca (--spark) — reservado para focus rings, links y detalles que
+ * deben llamar la atención, nunca para grandes superficies.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 210 20% 99%;
+    --foreground: 218 14% 18%;
+
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 218 14% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
+    --popover-foreground: 218 14% 18%;
+
+    --primary: 210 50% 24%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+
+    --secondary: 210 20% 95%;
+    --secondary-foreground: 218 14% 18%;
+
+    --muted: 210 16% 94%;
+    --muted-foreground: 215 12% 42%;
+
+    --accent: 210 20% 95%;
+    --accent-foreground: 218 14% 18%;
+
+    --spark: 198 90% 55%;
+    --spark-foreground: 218 30% 12%;
+
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
+
+    --border: 210 16% 88%;
+    --input: 210 16% 88%;
+    --ring: 198 90% 55%;
     --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 220 22% 8%;
+    --foreground: 210 20% 96%;
+
+    --card: 220 20% 11%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 20% 11%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 208 55% 42%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 220 15% 15%;
+    --muted-foreground: 215 12% 65%;
+
+    --accent: 220 16% 18%;
+    --accent-foreground: 210 20% 96%;
+
+    --spark: 198 95% 60%;
+    --spark-foreground: 220 30% 8%;
+
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 20%;
+    --input: 220 15% 20%;
+    --ring: 198 95% 60%;
   }
 
   * { @apply border-border; }
@@ -33,5 +81,5 @@
 /* Scrollbar delgada */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply rounded-full bg-zinc-300; }
-::-webkit-scrollbar-thumb:hover { @apply bg-zinc-400; }
+::-webkit-scrollbar-thumb { @apply rounded-full bg-muted-foreground/30; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/50; }
