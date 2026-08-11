@@ -37,6 +37,7 @@ interface MaterialOpcion {
   nombre: string;
   codigo: string;
   precioUnitario?: number;
+  unidadBaseId: string;
 }
 
 interface UnidadOpcion {
@@ -165,7 +166,7 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
   };
 
   const onInvalid = () => {
-    toast.error('Revisá los campos marcados en rojo — falta elegir material o unidad en alguna línea');
+    toast.error('Revisá los campos marcados en rojo — falta elegir material en alguna línea');
   };
 
   return (
@@ -221,7 +222,15 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                     <MaterialCombobox
                       materiales={materiales}
                       value={watchLineas?.[idx]?.materialId ?? ''}
-                      onChange={(id) => setValue(`lineas.${idx}.materialId`, id, { shouldValidate: true })}
+                      onChange={(id) => {
+                        setValue(`lineas.${idx}.materialId`, id, { shouldValidate: true });
+                        // La unidad del BOM se fija a la unidad real del material — el
+                        // sistema no convierte entre unidades (ver bom.service.ts), así
+                        // que dejar elegir una unidad distinta llevaba a descontar stock
+                        // mal (ej. "1 galón" descontando 1 litro sin convertir).
+                        const mat = materiales.find((m) => m.id === id);
+                        setValue(`lineas.${idx}.unidadId`, mat?.unidadBaseId ?? '', { shouldValidate: true });
+                      }}
                       hasError={!!errors.lineas?.[idx]?.materialId}
                     />
                     {errors.lineas?.[idx]?.materialId && (
@@ -259,23 +268,14 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                   <TableCell className="text-sm tabular-nums text-muted-foreground">
                     {cantMerma}
                   </TableCell>
-                  {/* Unidad */}
+                  {/* Unidad — fijada a la unidad real del material, no editable (ver comentario en onChange del material) */}
                   <TableCell>
-                    <select
-                      {...register(`lineas.${idx}.unidadId`)}
-                      className={`w-full rounded border bg-background px-2 py-1 text-sm ${
-                        errors.lineas?.[idx]?.unidadId ? 'border-destructive' : 'border-input'
-                      }`}
-                    >
-                      <option value="">—</option>
-                      {unidades.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.simbolo}
-                        </option>
-                      ))}
-                    </select>
+                    <input type="hidden" {...register(`lineas.${idx}.unidadId`)} />
+                    <span className="text-sm text-muted-foreground">
+                      {unidades.find((u) => u.id === watchLineas?.[idx]?.unidadId)?.simbolo ?? '—'}
+                    </span>
                     {errors.lineas?.[idx]?.unidadId && (
-                      <p className="mt-0.5 text-xs text-destructive">Elegí unidad</p>
+                      <p className="mt-0.5 text-xs text-destructive">Elegí un material primero</p>
                     )}
                   </TableCell>
                   {/* Costo */}

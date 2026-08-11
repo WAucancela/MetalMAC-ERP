@@ -56,6 +56,7 @@ export default function ProductoDetallePage() {
     nombre: m.nombre,
     codigo: m.codigoInterno ?? m.codigo,
     precioUnitario: m.costoUnitario,  // Material usa costoUnitario
+    unidadBaseId: m.unidadBaseId,
   }));
 
   const unidadesOpciones = unidades.map((u: any) => ({
