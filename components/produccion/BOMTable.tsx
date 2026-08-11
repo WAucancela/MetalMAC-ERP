@@ -16,13 +16,16 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import Decimal from 'decimal.js';
-import { Trash2, Plus, Save, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Save, Loader2, Check, ChevronsUpDown } from 'lucide-react';
 
 import { Button }   from '@/components/ui/button';
 import { Input }    from '@/components/ui/input';
 import { Label }    from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 import { BOMSchema, type BOMInput } from '@/lib/validations/produccion.schema';
 import { useGuardarBOM } from '@/hooks/useBOM';
@@ -47,6 +50,64 @@ interface BOMTableProps {
   initialData?: BOMInput;
   materiales: MaterialOpcion[];
   unidades: UnidadOpcion[];
+}
+
+// ── Combobox de material con búsqueda ────────────────────────────────────────
+// Reemplaza el <select> nativo: con 30+ materiales, escanear un dropdown
+// alfabético es lento — acá se filtra en vivo por código o nombre.
+
+function MaterialCombobox({
+  materiales, value, onChange, hasError,
+}: {
+  materiales: MaterialOpcion[];
+  value: string;
+  onChange: (id: string) => void;
+  hasError?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const seleccionado = materiales.find((m) => m.id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            'flex w-full items-center justify-between gap-1 rounded border bg-background px-2 py-1 text-sm',
+            hasError ? 'border-destructive' : 'border-input',
+          )}
+        >
+          <span className={cn('truncate text-left', !seleccionado && 'text-muted-foreground')}>
+            {seleccionado ? `${seleccionado.codigo} — ${seleccionado.nombre}` : 'Buscar material…'}
+          </span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-96 p-0" align="start">
+        <Command filter={(itemValue, search) => (itemValue.includes(search.toLowerCase()) ? 1 : 0)}>
+          <CommandInput placeholder="Buscar por código o nombre…" />
+          <CommandList>
+            <CommandEmpty>Sin resultados.</CommandEmpty>
+            <CommandGroup>
+              {materiales.map((m) => (
+                <CommandItem
+                  key={m.id}
+                  value={`${m.codigo} ${m.nombre}`.toLowerCase()}
+                  onSelect={() => { onChange(m.id); setOpen(false); }}
+                >
+                  <Check className={cn('mr-2 h-4 w-4', m.id === value ? 'opacity-100' : 'opacity-0')} />
+                  <span className="font-mono text-xs text-muted-foreground mr-2">{m.codigo}</span>
+                  {m.nombre}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ── Componente ─────────────────────────────────────────────────────────────────
@@ -157,19 +218,12 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                 <TableRow key={field.id}>
                   {/* Material */}
                   <TableCell>
-                    <select
-                      {...register(`lineas.${idx}.materialId`)}
-                      className={`w-full rounded border bg-background px-2 py-1 text-sm ${
-                        errors.lineas?.[idx]?.materialId ? 'border-destructive' : 'border-input'
-                      }`}
-                    >
-                      <option value="">Seleccionar…</option>
-                      {materiales.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.codigo} — {m.nombre}
-                        </option>
-                      ))}
-                    </select>
+                    <MaterialCombobox
+                      materiales={materiales}
+                      value={watchLineas?.[idx]?.materialId ?? ''}
+                      onChange={(id) => setValue(`lineas.${idx}.materialId`, id, { shouldValidate: true })}
+                      hasError={!!errors.lineas?.[idx]?.materialId}
+                    />
                     {errors.lineas?.[idx]?.materialId && (
                       <p className="mt-0.5 text-xs text-destructive">Elegí un material</p>
                     )}
