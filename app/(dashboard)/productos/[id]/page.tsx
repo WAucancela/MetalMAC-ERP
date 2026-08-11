@@ -24,8 +24,8 @@ export default function ProductoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { data: productoData, isLoading: loadingProducto } = useProducto(id);
   const { data: bomData, isLoading: loadingBOM } = useBOM(id);
-  const { data: materiales = [] } = useMateriales({ activo: true });
-  const { data: unidades = [] } = useUnidades();
+  const { data: materiales = [], isLoading: loadingMateriales } = useMateriales({ activo: true });
+  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
   const actualizarProducto = useActualizarProducto(id);
 
   if (loadingProducto) {
@@ -121,12 +121,17 @@ export default function ProductoDetallePage() {
       {/* BOM */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Bill of Materials (BOM)</h2>
-        {loadingBOM ? (
+        {loadingBOM || loadingMateriales || loadingUnidades ? (
           <Skeleton className="h-48 w-full" />
         ) : (
+          // BOMTable registra los <select> nativos (Unidad) con su valor inicial
+          // en el primer render — si `unidades` todavía no había llegado, el
+          // <option> correspondiente no existía aún y el navegador descartaba
+          // ese valor sin volver a aplicarlo después. Por eso se espera acá a
+          // materiales/unidades también, no solo al BOM en sí.
           <BOMTable
             productoId={id}
-            initialData={bomData?.bom ?? undefined}
+            initialData={bomData ?? undefined}
             materiales={materialesOpciones}
             unidades={unidadesOpciones}
           />
