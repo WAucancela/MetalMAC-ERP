@@ -129,7 +129,7 @@ export function MovimientoForm({ materialId, onSuccess }: Props) {
 
       {/* Notas */}
       <div className="space-y-1.5">
-        <Label>Notas <span className="text-zinc-400">(opcional)</span></Label>
+        <Label>Notas <span className="text-muted-foreground">(opcional)</span></Label>
         <Textarea rows={2} placeholder="Observaciones..." {...register('notas')} />
       </div>
 

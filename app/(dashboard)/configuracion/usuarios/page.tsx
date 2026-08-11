@@ -151,13 +151,13 @@ export default function UsuariosPage() {
       </div>
 
       {creado && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2 text-sm">
-          <p className="font-medium text-amber-900">
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2 text-sm dark:border-amber-900 dark:bg-amber-950/40">
+          <p className="font-medium text-amber-900 dark:text-amber-200">
             Usuario creado — copiá esta contraseña ahora, no se va a volver a mostrar.
           </p>
           <div className="flex items-center gap-2">
-            <code className="rounded bg-white px-2 py-1 border">{creado.email}</code>
-            <code className="rounded bg-white px-2 py-1 border font-mono">{creado.password}</code>
+            <code className="rounded bg-background px-2 py-1 border">{creado.email}</code>
+            <code className="rounded bg-background px-2 py-1 border font-mono">{creado.password}</code>
             <Button size="sm" variant="outline" onClick={() => copiar(`${creado.email} / ${creado.password}`)}>
               <Copy className="mr-1.5 h-3.5 w-3.5" /> Copiar
             </Button>

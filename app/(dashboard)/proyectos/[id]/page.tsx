@@ -169,7 +169,7 @@ export default function ProyectoDetallePage() {
               <Link
                 key={opId}
                 href={`/produccion/${opId}`}
-                className="text-xs font-mono bg-zinc-100 hover:bg-zinc-200 px-2 py-1 rounded transition-colors"
+                className="text-xs font-mono bg-muted hover:bg-accent px-2 py-1 rounded transition-colors"
               >
                 {opId}
               </Link>

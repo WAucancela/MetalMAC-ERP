@@ -99,12 +99,12 @@ export default function FacturaVentaDetallePage() {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-zinc-900">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {factura.numeroFactura || 'Factura sin emitir'}
               </h1>
               <Badge variant={badgeInfo.variant}>{badgeInfo.label}</Badge>
             </div>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Factura de venta
               {factura.proyectoId && (
                 <> · <Link href={`/proyectos/${factura.proyectoId}`} className="text-blue-600 hover:underline">Ver proyecto</Link></>
@@ -136,28 +136,28 @@ export default function FacturaVentaDetallePage() {
 
       {/* Cabecera — 2 columnas */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg border border-zinc-200 bg-white p-5 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Datos del comprobante
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Número</dt>
+              <dt className="text-muted-foreground">Número</dt>
               <dd className="font-medium">{factura.numeroFactura || '—'}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Fecha emisión</dt>
+              <dt className="text-muted-foreground">Fecha emisión</dt>
               <dd>{format(new Date(factura.fechaEmision), 'dd MMM yyyy', { locale: es })}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Clave acceso SRI</dt>
+              <dt className="text-muted-foreground">Clave acceso SRI</dt>
               <dd className="font-mono text-xs truncate max-w-[160px]" title={factura.claveAcceso ?? undefined}>
                 {factura.claveAcceso ? `${factura.claveAcceso.slice(0, 12)}…` : '—'}
               </dd>
             </div>
             {factura.sriEstado && (
               <div className="flex justify-between">
-                <dt className="text-zinc-500">Estado SRI</dt>
+                <dt className="text-muted-foreground">Estado SRI</dt>
                 <dd className="font-medium">{factura.sriEstado}</dd>
               </div>
             )}
@@ -167,21 +167,21 @@ export default function FacturaVentaDetallePage() {
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-5 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Cliente
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Nombre</dt>
+              <dt className="text-muted-foreground">Nombre</dt>
               <dd className="font-medium">{factura.clienteNombre}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">RUC / cédula</dt>
+              <dt className="text-muted-foreground">RUC / cédula</dt>
               <dd className="font-mono">{factura.clienteRuc}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Email</dt>
+              <dt className="text-muted-foreground">Email</dt>
               <dd className="truncate max-w-[180px]">{factura.clienteEmail || '—'}</dd>
             </div>
           </dl>
@@ -189,9 +189,9 @@ export default function FacturaVentaDetallePage() {
       </div>
 
       {/* Líneas */}
-      <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-        <div className="px-5 py-4 border-b border-zinc-100">
-          <h2 className="text-sm font-semibold text-zinc-700">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">
             Líneas de la factura ({factura.lineas?.length ?? 0})
           </h2>
         </div>
@@ -221,7 +221,7 @@ export default function FacturaVentaDetallePage() {
                       {linea.ordenProduccionId}
                     </Link>
                   ) : (
-                    <span className="text-xs text-zinc-400">—</span>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </TableCell>
               </TableRow>
@@ -229,17 +229,17 @@ export default function FacturaVentaDetallePage() {
           </TableBody>
         </Table>
 
-        <div className="border-t border-zinc-100 px-5 py-4">
+        <div className="border-t border-border px-5 py-4">
           <div className="ml-auto max-w-xs space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Subtotal sin IVA</span>
+              <span className="text-muted-foreground">Subtotal sin IVA</span>
               <span>{formatUSD(factura.subtotalSinIva)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">IVA (15%)</span>
+              <span className="text-muted-foreground">IVA (15%)</span>
               <span>{formatUSD(factura.iva)}</span>
             </div>
-            <div className="flex justify-between font-semibold text-base border-t border-zinc-200 pt-2">
+            <div className="flex justify-between font-semibold text-base border-t border-border pt-2">
               <span>Total</span>
               <span>{formatUSD(factura.total)}</span>
             </div>

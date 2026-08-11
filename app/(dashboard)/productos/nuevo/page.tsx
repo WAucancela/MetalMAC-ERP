@@ -67,16 +67,16 @@ export default function NuevoProductoPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Nuevo Producto</h1>
-          <p className="text-sm text-zinc-500">
+          <h1 className="text-2xl font-semibold text-foreground">Nuevo Producto</h1>
+          <p className="text-sm text-muted-foreground">
             Completa los datos básicos. Después podrás definir el BOM.
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 space-y-5">
-          <h2 className="text-sm font-medium text-zinc-700">Información general</h2>
+        <div className="rounded-lg border border-border bg-card p-6 space-y-5">
+          <h2 className="text-sm font-medium text-foreground">Información general</h2>
 
           {/* Código */}
           <div className="space-y-1.5">
@@ -111,7 +111,7 @@ export default function NuevoProductoPage() {
               id="descripcion"
               rows={3}
               placeholder="Descripción detallada del producto..."
-              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-1 resize-none"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-none"
               {...register('descripcion')}
             />
           </div>

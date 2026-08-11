@@ -62,16 +62,16 @@ export default function NuevoMaterialPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Nuevo material</h1>
-          <p className="text-sm text-zinc-500">Complete los datos del material a registrar</p>
+          <h1 className="text-2xl font-semibold text-foreground">Nuevo material</h1>
+          <p className="text-sm text-muted-foreground">Complete los datos del material a registrar</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-lg border border-zinc-200 bg-white p-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 rounded-lg border border-border bg-card p-6">
 
         {/* Identificación */}
         <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold text-zinc-700">Identificación</legend>
+          <legend className="text-sm font-semibold text-foreground">Identificación</legend>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -114,11 +114,11 @@ export default function NuevoMaterialPage() {
           </div>
         </fieldset>
 
-        <hr className="border-zinc-100" />
+        <hr className="border-border" />
 
         {/* Clasificación */}
         <fieldset className="space-y-4">
-          <legend className="text-sm font-semibold text-zinc-700">Clasificación</legend>
+          <legend className="text-sm font-semibold text-foreground">Clasificación</legend>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Categoría <span className="text-red-500">*</span></Label>
@@ -174,9 +174,9 @@ export default function NuevoMaterialPage() {
         {/* Especificaciones dinámicas por tipo */}
         {tipo === 'PLANCHA' && (
           <>
-            <hr className="border-zinc-100" />
+            <hr className="border-border" />
             <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-zinc-700">Especificaciones de plancha</legend>
+              <legend className="text-sm font-semibold text-foreground">Especificaciones de plancha</legend>
               <div className="grid grid-cols-3 gap-4">
                 {(['anchoMm', 'largoMm', 'espesorMm'] as const).map((field) => (
                   <div key={field} className="space-y-1.5">
@@ -209,9 +209,9 @@ export default function NuevoMaterialPage() {
 
         {(tipo === 'TUBO' || tipo === 'PERFIL' || tipo === 'VARILLA') && (
           <>
-            <hr className="border-zinc-100" />
+            <hr className="border-border" />
             <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-zinc-700">Especificaciones</legend>
+              <legend className="text-sm font-semibold text-foreground">Especificaciones</legend>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Longitud nominal (mm)</Label>
@@ -232,7 +232,7 @@ export default function NuevoMaterialPage() {
           </>
         )}
 
-        <hr className="border-zinc-100" />
+        <hr className="border-border" />
 
         {/* Acciones */}
         <div className="flex justify-end gap-3">

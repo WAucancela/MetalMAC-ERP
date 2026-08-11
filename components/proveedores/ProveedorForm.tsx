@@ -144,7 +144,7 @@ export default function ProveedorForm({ proveedor, onSuccess, onCancel }: Provee
             <input
               type="checkbox"
               {...register(field)}
-              className="h-4 w-4 rounded border-gray-300"
+              className="h-4 w-4 rounded border-input"
             />
             {label}
           </label>

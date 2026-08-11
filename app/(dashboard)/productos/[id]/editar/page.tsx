@@ -39,7 +39,7 @@ export default function EditarProductoPage() {
   if (isError || !data?.producto) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <p className="text-zinc-500">Producto no encontrado.</p>
+        <p className="text-muted-foreground">Producto no encontrado.</p>
         <Button variant="outline" onClick={() => router.back()}>Volver</Button>
       </div>
     );
@@ -97,14 +97,14 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Editar Producto</h1>
-          <p className="text-sm text-zinc-500">{producto.codigo}</p>
+          <h1 className="text-2xl font-semibold text-foreground">Editar Producto</h1>
+          <p className="text-sm text-muted-foreground">{producto.codigo}</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 space-y-5">
-          <h2 className="text-sm font-medium text-zinc-700">Información general</h2>
+        <div className="rounded-lg border border-border bg-card p-6 space-y-5">
+          <h2 className="text-sm font-medium text-foreground">Información general</h2>
 
           <div className="space-y-1.5">
             <Label htmlFor="codigo">Código interno *</Label>
@@ -124,7 +124,7 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
               id="descripcion"
               rows={3}
               placeholder="Descripción detallada del producto..."
-              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-1 resize-none"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-none"
               {...register('descripcion')}
             />
           </div>
@@ -181,18 +181,18 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
           </div>
         </div>
 
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 space-y-3">
-          <h2 className="text-sm font-medium text-zinc-700">Estado</h2>
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
+        <div className="rounded-lg border border-border bg-card p-6 space-y-3">
+          <h2 className="text-sm font-medium text-foreground">Estado</h2>
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-zinc-300"
+              className="h-4 w-4 rounded border-input"
               checked={activo}
               onChange={(e) => setValue('activo', e.target.checked)}
             />
             Producto activo
           </label>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Desmarcá esto para dejar de mostrarlo en listados y selectores (crear OP, BOM, facturas)
             sin borrar su historial. Podés volver a activarlo cuando quieras.
           </p>

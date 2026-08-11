@@ -27,7 +27,7 @@ const TIPO_MOV_COLOR: Record<string, string> = {
   AJUSTE_NEGATIVO: 'bg-orange-100 text-orange-700',
   RESERVA:         'bg-purple-100 text-purple-700',
   LIBERACION:      'bg-teal-100 text-teal-700',
-  MERMA:           'bg-zinc-100 text-zinc-600',
+  MERMA:           'bg-muted text-muted-foreground',
   DEVOLUCION:      'bg-sky-100 text-sky-700',
 };
 
@@ -59,7 +59,7 @@ export default function MaterialDetallePage() {
   if (isError || !data) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <p className="text-zinc-500">Material no encontrado.</p>
+        <p className="text-muted-foreground">Material no encontrado.</p>
         <Button variant="outline" onClick={() => router.back()}>Volver</Button>
       </div>
     );
@@ -76,8 +76,8 @@ export default function MaterialDetallePage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <p className="font-mono text-xs text-zinc-400">{material.codigoInterno}</p>
-            <h1 className="text-2xl font-semibold text-zinc-900">{material.nombre}</h1>
+            <p className="font-mono text-xs text-muted-foreground">{material.codigoInterno}</p>
+            <h1 className="text-2xl font-semibold text-foreground">{material.nombre}</h1>
           </div>
         </div>
 
@@ -128,7 +128,7 @@ export default function MaterialDetallePage() {
           label="Stock mínimo"
           value={stock?.cantidadMinima ?? 0}
           icon={null}
-          color="text-zinc-600"
+          color="text-muted-foreground"
           extra={
             stock ? (
               <StockBadge
@@ -141,8 +141,8 @@ export default function MaterialDetallePage() {
       </div>
 
       {/* Especificaciones */}
-      <section className="rounded-lg border border-zinc-200 bg-white p-5">
-        <h2 className="mb-4 text-sm font-semibold text-zinc-700">Especificaciones</h2>
+      <section className="rounded-lg border border-border bg-card p-5">
+        <h2 className="mb-4 text-sm font-semibold text-foreground">Especificaciones</h2>
         <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-3">
           <SpecRow label="Tipo"      value={material.tipo} />
           <SpecRow label="Grado"     value={material.grado || '—'} />
@@ -150,8 +150,8 @@ export default function MaterialDetallePage() {
           <SpecRow label="Ubicación" value={stock?.ubicacion || '—'} />
           {material.descripcion && (
             <div className="col-span-full">
-              <dt className="text-xs text-zinc-400">Descripción</dt>
-              <dd className="mt-0.5 text-sm text-zinc-700">{material.descripcion}</dd>
+              <dt className="text-xs text-muted-foreground">Descripción</dt>
+              <dd className="mt-0.5 text-sm text-foreground">{material.descripcion}</dd>
             </div>
           )}
         </dl>
@@ -159,11 +159,11 @@ export default function MaterialDetallePage() {
 
       {/* Historial de movimientos */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-zinc-700">Últimos 20 movimientos</h2>
-        <div className="rounded-lg border border-zinc-200 bg-white">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Últimos 20 movimientos</h2>
+        <div className="rounded-lg border border-border bg-card">
           <Table>
             <TableHeader>
-              <TableRow className="bg-zinc-50">
+              <TableRow className="bg-muted/50">
                 <TableHead>Fecha</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Cantidad</TableHead>
@@ -175,7 +175,7 @@ export default function MaterialDetallePage() {
             <TableBody>
               {movimientos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-zinc-400">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                     Sin movimientos registrados.
                   </TableCell>
                 </TableRow>
@@ -188,27 +188,27 @@ export default function MaterialDetallePage() {
 
                 return (
                   <TableRow key={mov.id}>
-                    <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                       {fecha.toLocaleDateString('es-EC', {
                         day: '2-digit', month: 'short', year: 'numeric',
                         hour: '2-digit', minute: '2-digit',
                       })}
                     </TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TIPO_MOV_COLOR[mov.tipo] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${TIPO_MOV_COLOR[mov.tipo] ?? 'bg-muted text-muted-foreground'}`}>
                         {TIPO_MOV_LABEL[mov.tipo] ?? mov.tipo}
                       </span>
                     </TableCell>
                     <TableCell className={`text-right font-mono text-sm font-medium ${esEntrada ? 'text-emerald-600' : 'text-red-600'}`}>
                       {esEntrada ? '+' : '-'}{mov.cantidad.toLocaleString('es-EC', { maximumFractionDigits: 3 })}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-zinc-500">
+                    <TableCell className="text-right font-mono text-xs text-muted-foreground">
                       {mov.stockAnterior.toLocaleString('es-EC', { maximumFractionDigits: 3 })}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs text-zinc-700 font-medium">
+                    <TableCell className="text-right font-mono text-xs text-foreground font-medium">
                       {mov.stockPosterior.toLocaleString('es-EC', { maximumFractionDigits: 3 })}
                     </TableCell>
-                    <TableCell className="text-xs text-zinc-400">{mov.numeroReferencia}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{mov.numeroReferencia}</TableCell>
                   </TableRow>
                 );
               })}
@@ -227,9 +227,9 @@ function StatCard({
   color: string; extra?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-5">
+    <div className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500">{label}</p>
+        <p className="text-sm text-muted-foreground">{label}</p>
         {icon}
       </div>
       <p className={`mt-2 text-3xl font-bold tabular-nums ${color}`}>
@@ -243,8 +243,8 @@ function StatCard({
 function SpecRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-zinc-400">{label}</dt>
-      <dd className="mt-0.5 text-sm font-medium text-zinc-700">{value}</dd>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium text-foreground">{value}</dd>
     </div>
   );
 }

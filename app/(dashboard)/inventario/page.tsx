@@ -48,8 +48,8 @@ export default function InventarioPage() {
       {/* Encabezado */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Inventario</h1>
-          <p className="text-sm text-zinc-500">Catálogo de materiales y stock actual</p>
+          <h1 className="text-2xl font-semibold text-foreground">Inventario</h1>
+          <p className="text-sm text-muted-foreground">Catálogo de materiales y stock actual</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
@@ -81,7 +81,7 @@ export default function InventarioPage() {
       {/* Filtros */}
       <div className="flex gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por nombre o código..."
             className="pl-9"
@@ -103,10 +103,10 @@ export default function InventarioPage() {
       </div>
 
       {/* Tabla */}
-      <div className="rounded-lg border border-zinc-200 bg-white">
+      <div className="rounded-lg border border-border bg-card">
         <Table>
           <TableHeader>
-            <TableRow className="bg-zinc-50">
+            <TableRow className="bg-muted/50">
               <TableHead className="w-36">Código</TableHead>
               <TableHead>Material</TableHead>
               <TableHead className="w-28">Tipo</TableHead>
@@ -135,20 +135,20 @@ export default function InventarioPage() {
             )}
             {!isLoading && !isError && materiales?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-sm text-zinc-400">
+                <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
                   No se encontraron materiales.
                 </TableCell>
               </TableRow>
             )}
             {materiales?.map((m) => (
-              <TableRow key={m.id} className="hover:bg-zinc-50">
-                <TableCell className="font-mono text-xs text-zinc-500">
+              <TableRow key={m.id} className="hover:bg-muted/50">
+                <TableCell className="font-mono text-xs text-muted-foreground">
                   {m.codigoInterno}
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium text-zinc-900">{m.nombre}</div>
+                  <div className="font-medium text-foreground">{m.nombre}</div>
                   {m.descripcion && (
-                    <div className="text-xs text-zinc-400 line-clamp-1">{m.descripcion}</div>
+                    <div className="text-xs text-muted-foreground line-clamp-1">{m.descripcion}</div>
                   )}
                 </TableCell>
                 <TableCell>
@@ -156,7 +156,7 @@ export default function InventarioPage() {
                     {TIPO_LABELS[m.tipo] ?? m.tipo}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm text-zinc-600">{m.grado}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{m.grado}</TableCell>
                 <TableCell>
                   {m.stock ? (
                     <StockBadge
@@ -164,7 +164,7 @@ export default function InventarioPage() {
                       minima={m.stock.cantidadMinima}
                     />
                   ) : (
-                    <span className="text-xs text-zinc-400">Sin stock</span>
+                    <span className="text-xs text-muted-foreground">Sin stock</span>
                   )}
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">

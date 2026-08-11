@@ -17,7 +17,7 @@ export function ResumenPresupuesto({ presupuesto, costoReal, costoEstimado, clas
   return (
     <div className={cn('space-y-2', className)}>
       {/* Barra */}
-      <div className="h-3 w-full rounded-full bg-zinc-100 overflow-hidden">
+      <div className="h-3 w-full rounded-full bg-muted overflow-hidden">
         <div
           className={cn(
             'h-full rounded-full transition-all',

@@ -106,12 +106,12 @@ export default function FacturaDetallePage() {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-semibold text-zinc-900">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {factura.numeroFactura}
               </h1>
               <Badge variant={badgeInfo.variant}>{badgeInfo.label}</Badge>
             </div>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Factura de compra · SRI Ecuador
             </p>
           </div>
@@ -152,21 +152,21 @@ export default function FacturaDetallePage() {
       {/* Cabecera — 2 columnas */}
       <div className="grid grid-cols-2 gap-4">
         {/* Datos de la factura */}
-        <div className="rounded-lg border border-zinc-200 bg-white p-5 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Datos del comprobante
           </h2>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Número</dt>
+              <dt className="text-muted-foreground">Número</dt>
               <dd className="font-medium">{factura.numeroFactura}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Fecha emisión</dt>
+              <dt className="text-muted-foreground">Fecha emisión</dt>
               <dd>{formatDate(factura.fechaEmision)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Clave acceso SRI</dt>
+              <dt className="text-muted-foreground">Clave acceso SRI</dt>
               <dd className="font-mono text-xs truncate max-w-[160px]" title={factura.claveAcceso}>
                 {factura.claveAcceso?.slice(0, 12)}…
               </dd>
@@ -175,29 +175,29 @@ export default function FacturaDetallePage() {
         </div>
 
         {/* Proveedor */}
-        <div className="rounded-lg border border-zinc-200 bg-white p-5 space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Proveedor
           </h2>
           {proveedor ? (
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <dt className="text-zinc-500">Razón social</dt>
+                <dt className="text-muted-foreground">Razón social</dt>
                 <dd className="font-medium">{proveedor.razonSocial}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-zinc-500">RUC</dt>
+                <dt className="text-muted-foreground">RUC</dt>
                 <dd className="font-mono">{proveedor.ruc}</dd>
               </div>
               {proveedor.nombreComercial && (
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Nombre comercial</dt>
+                  <dt className="text-muted-foreground">Nombre comercial</dt>
                   <dd>{proveedor.nombreComercial}</dd>
                 </div>
               )}
             </dl>
           ) : (
-            <p className="text-sm text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               ID: <span className="font-mono">{factura.proveedorId}</span>
             </p>
           )}
@@ -205,9 +205,9 @@ export default function FacturaDetallePage() {
       </div>
 
       {/* Líneas */}
-      <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-        <div className="px-5 py-4 border-b border-zinc-100">
-          <h2 className="text-sm font-semibold text-zinc-700">
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="text-sm font-semibold text-foreground">
             Líneas de la factura ({factura.lineas?.length ?? 0})
           </h2>
         </div>
@@ -243,7 +243,7 @@ export default function FacturaDetallePage() {
                       {linea.materialId}
                     </Link>
                   ) : (
-                    <span className="text-xs text-zinc-400">Sin mapear</span>
+                    <span className="text-xs text-muted-foreground">Sin mapear</span>
                   )}
                 </TableCell>
               </TableRow>
@@ -252,14 +252,14 @@ export default function FacturaDetallePage() {
         </Table>
 
         {/* Totales */}
-        <div className="border-t border-zinc-100 px-5 py-4">
+        <div className="border-t border-border px-5 py-4">
           <div className="ml-auto max-w-xs space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-zinc-500">Subtotal sin IVA</span>
+              <span className="text-muted-foreground">Subtotal sin IVA</span>
               <span>{formatUSD(factura.subtotalSinIva)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-zinc-500">IVA (15%)</span>
+              <span className="text-muted-foreground">IVA (15%)</span>
               <span>{formatUSD(factura.iva)}</span>
             </div>
             {(factura.retenciones ?? []).length > 0 && (
@@ -270,7 +270,7 @@ export default function FacturaDetallePage() {
                 </span>
               </div>
             )}
-            <div className="flex justify-between font-semibold text-base border-t border-zinc-200 pt-2">
+            <div className="flex justify-between font-semibold text-base border-t border-border pt-2">
               <span>Total</span>
               <span>{formatUSD(factura.total)}</span>
             </div>
@@ -280,9 +280,9 @@ export default function FacturaDetallePage() {
 
       {/* Retenciones (si las hay) */}
       {(factura.retenciones ?? []).length > 0 && (
-        <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-100">
-            <h2 className="text-sm font-semibold text-zinc-700">Retenciones</h2>
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h2 className="text-sm font-semibold text-foreground">Retenciones</h2>
           </div>
           <Table>
             <TableHeader>

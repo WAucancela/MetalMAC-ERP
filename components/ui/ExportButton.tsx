@@ -69,8 +69,8 @@ export function ExportButton({
       onClick={handleClick}
       disabled={loading || !token}
       className={[
-        'inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-2',
-        'text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 transition-colors',
+        'inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2',
+        'text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50 transition-colors',
         className,
       ].join(' ')}
     >
