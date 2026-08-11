@@ -103,8 +103,12 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
     }
   };
 
+  const onInvalid = () => {
+    toast.error('Revisá los campos marcados en rojo — falta elegir material o unidad en alguna línea');
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
       {/* ── Materiales ──────────────────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -155,7 +159,9 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                   <TableCell>
                     <select
                       {...register(`lineas.${idx}.materialId`)}
-                      className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+                      className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                        errors.lineas?.[idx]?.materialId ? 'border-destructive' : 'border-input'
+                      }`}
                     >
                       <option value="">Seleccionar…</option>
                       {materiales.map((m) => (
@@ -164,6 +170,9 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                         </option>
                       ))}
                     </select>
+                    {errors.lineas?.[idx]?.materialId && (
+                      <p className="mt-0.5 text-xs text-destructive">Elegí un material</p>
+                    )}
                   </TableCell>
                   {/* Cantidad base */}
                   <TableCell>
@@ -171,9 +180,12 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                       type="number"
                       step="any"
                       min={0}
-                      className="h-8 text-sm"
+                      className={`h-8 text-sm ${errors.lineas?.[idx]?.cantidadBase ? 'border-destructive' : ''}`}
                       {...register(`lineas.${idx}.cantidadBase`, { valueAsNumber: true })}
                     />
+                    {errors.lineas?.[idx]?.cantidadBase && (
+                      <p className="mt-0.5 text-xs text-destructive">{errors.lineas[idx]?.cantidadBase?.message}</p>
+                    )}
                   </TableCell>
                   {/* Factor merma */}
                   <TableCell>
@@ -182,9 +194,12 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                       step="0.01"
                       min={1}
                       max={3}
-                      className="h-8 text-sm"
+                      className={`h-8 text-sm ${errors.lineas?.[idx]?.factorMerma ? 'border-destructive' : ''}`}
                       {...register(`lineas.${idx}.factorMerma`, { valueAsNumber: true })}
                     />
+                    {errors.lineas?.[idx]?.factorMerma && (
+                      <p className="mt-0.5 text-xs text-destructive">{errors.lineas[idx]?.factorMerma?.message}</p>
+                    )}
                   </TableCell>
                   {/* Calculada */}
                   <TableCell className="text-sm tabular-nums text-muted-foreground">
@@ -194,7 +209,9 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                   <TableCell>
                     <select
                       {...register(`lineas.${idx}.unidadId`)}
-                      className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+                      className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                        errors.lineas?.[idx]?.unidadId ? 'border-destructive' : 'border-input'
+                      }`}
                     >
                       <option value="">—</option>
                       {unidades.map((u) => (
@@ -203,6 +220,9 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                         </option>
                       ))}
                     </select>
+                    {errors.lineas?.[idx]?.unidadId && (
+                      <p className="mt-0.5 text-xs text-destructive">Elegí unidad</p>
+                    )}
                   </TableCell>
                   {/* Costo */}
                   <TableCell className="text-right text-sm tabular-nums">
@@ -279,9 +299,12 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                       type="number"
                       min={0}
                       step="any"
-                      className="h-8 text-sm"
+                      className={`h-8 text-sm ${errors.operaciones?.[idx]?.minutos ? 'border-destructive' : ''}`}
                       {...register(`operaciones.${idx}.minutos`, { valueAsNumber: true })}
                     />
+                    {errors.operaciones?.[idx]?.minutos && (
+                      <p className="mt-0.5 text-xs text-destructive">Debe ser mayor a 0</p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Input
