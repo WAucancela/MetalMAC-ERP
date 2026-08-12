@@ -63,7 +63,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           completada_por: user.uid,
         })
         .eq('id', params.opId)
-        .select('*, operarios(nombre)')
+        .select('*, operarios(nombre), tipos_operacion(nombre)')
         .single();
       if (error) throw error;
 
@@ -75,7 +75,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       .from('orden_operaciones')
       .update({ operario_id: operarioId })
       .eq('id', params.opId)
-      .select('*, operarios(nombre)')
+      .select('*, operarios(nombre), tipos_operacion(nombre)')
       .single();
     if (error) throw error;
 

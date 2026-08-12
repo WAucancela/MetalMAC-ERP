@@ -48,8 +48,6 @@ export type EstadoOrdenProduccion =
   | 'COMPLETADA'
   | 'CANCELADA';
 
-export type TipoOperacion = 'LASER' | 'SOLDADURA' | 'DOBLADO' | 'ENSAMBLE';
-
 export type EstadoOperacionProduccion = 'PENDIENTE' | 'COMPLETADA';
 
 export type EstadoRevisionPedido =
@@ -386,7 +384,7 @@ export interface LineaBOM {
 }
 
 export interface OperacionBOM {
-  tipo: TipoOperacion;
+  tipoOperacionId: string;
   minutos: number;            // tiempo para 1 unidad
   costoPorMinuto: number;     // USD/minuto de la máquina/operario
   costoTotal: number;
@@ -420,11 +418,19 @@ export interface Operario {
   creadoEn: string;
 }
 
+export interface TipoOperacion {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  creadoEn: string;
+}
+
 export interface OrdenOperacion {
   id: string;
   ordenId: string;
   orden: number;
-  tipo: TipoOperacion;
+  tipoOperacionId: string;
+  tipoOperacionNombre?: string | null;
   minutosPlanificados: number;
   costoPorMinuto: number;
   operarioId: string | null;

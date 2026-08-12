@@ -5,7 +5,7 @@
  * - Agrega / elimina líneas
  * - Muestra cantidadConMerma calculada en tiempo real
  * - Muestra costo estimado por línea (si se pasa precioMaterial)
- * - Sección de operaciones (LASER, SOLDADURA, etc.)
+ * - Sección de operaciones (tipos definidos en el catálogo Tipos de operación)
  * - Al guardar llama useGuardarBOM y muestra toast
  */
 
@@ -46,11 +46,17 @@ interface UnidadOpcion {
   simbolo: string;
 }
 
+interface TipoOperacionOpcion {
+  id: string;
+  nombre: string;
+}
+
 interface BOMTableProps {
   productoId: string;
   initialData?: BOMInput;
   materiales: MaterialOpcion[];
   unidades: UnidadOpcion[];
+  tiposOperacion: TipoOperacionOpcion[];
 }
 
 // ── Combobox de material con búsqueda ────────────────────────────────────────
@@ -113,7 +119,7 @@ function MaterialCombobox({
 
 // ── Componente ─────────────────────────────────────────────────────────────────
 
-export function BOMTable({ productoId, initialData, materiales, unidades }: BOMTableProps) {
+export function BOMTable({ productoId, initialData, materiales, unidades, tiposOperacion }: BOMTableProps) {
   const guardarBOM = useGuardarBOM(productoId);
 
   const { control, register, handleSubmit, watch, setValue, formState: { errors } } =
@@ -166,7 +172,7 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
   };
 
   const onInvalid = () => {
-    toast.error('Revisá los campos marcados en rojo — falta elegir material en alguna línea');
+    toast.error('Revisá los campos marcados en rojo — falta elegir material o tipo de operación en alguna línea');
   };
 
   return (
@@ -309,7 +315,7 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => appendOp({ tipo: 'ENSAMBLE', minutos: 0, costoPorMinuto: 0 })}
+            onClick={() => appendOp({ tipoOperacionId: tiposOperacion[0]?.id ?? '', minutos: 0, costoPorMinuto: 0 })}
           >
             <Plus className="mr-1 h-3 w-3" /> Agregar operación
           </Button>
@@ -340,13 +346,19 @@ export function BOMTable({ productoId, initialData, materiales, unidades }: BOMT
                 <TableRow key={field.id}>
                   <TableCell>
                     <select
-                      {...register(`operaciones.${idx}.tipo`)}
-                      className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
+                      {...register(`operaciones.${idx}.tipoOperacionId`)}
+                      className={`w-full rounded border bg-background px-2 py-1 text-sm ${
+                        errors.operaciones?.[idx]?.tipoOperacionId ? 'border-destructive' : 'border-input'
+                      }`}
                     >
-                      {(['LASER', 'SOLDADURA', 'DOBLADO', 'ENSAMBLE'] as const).map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      <option value="">Seleccionar…</option>
+                      {tiposOperacion.map((t) => (
+                        <option key={t.id} value={t.id}>{t.nombre}</option>
                       ))}
                     </select>
+                    {errors.operaciones?.[idx]?.tipoOperacionId && (
+                      <p className="mt-0.5 text-xs text-destructive">Elegí un tipo</p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Input

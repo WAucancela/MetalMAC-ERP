@@ -8,7 +8,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Wrench } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { ExportButton } from '@/components/ui/ExportButton';
@@ -49,6 +49,11 @@ export default function ProduccionPage() {
           <Button asChild variant="outline">
             <Link href="/produccion/operarios">
               <Users className="mr-2 h-4 w-4" /> Operarios
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/produccion/tipos-operacion">
+              <Wrench className="mr-2 h-4 w-4" /> Tipos de operación
             </Link>
           </Button>
           <Button asChild>

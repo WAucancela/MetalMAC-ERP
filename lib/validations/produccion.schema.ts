@@ -34,7 +34,7 @@ export const LineaBOMSchema = z.object({
 export type LineaBOMInput = z.infer<typeof LineaBOMSchema>;
 
 export const OperacionBOMSchema = z.object({
-  tipo: z.enum(['LASER', 'SOLDADURA', 'DOBLADO', 'ENSAMBLE']),
+  tipoOperacionId: z.string().min(1),
   minutos: z.number().positive(),
   costoPorMinuto: z.number().nonnegative(),
 });
@@ -84,6 +84,17 @@ export const ActualizarOperarioSchema = OperarioSchema.partial();
 
 export type ActualizarOperarioInput = z.infer<typeof ActualizarOperarioSchema>;
 
+export const TipoOperacionSchema = z.object({
+  nombre: z.string().min(2).max(100),
+  activo: z.boolean().default(true),
+});
+
+export type TipoOperacionInput = z.infer<typeof TipoOperacionSchema>;
+
+export const ActualizarTipoOperacionSchema = TipoOperacionSchema.partial();
+
+export type ActualizarTipoOperacionInput = z.infer<typeof ActualizarTipoOperacionSchema>;
+
 export const AsignarOperacionSchema = z.object({
   operarioId: z.string().uuid().nullable(),
 });
@@ -131,3 +142,9 @@ export const OperariosQuerySchema = z.object({
 });
 
 export type OperariosQuery = z.infer<typeof OperariosQuerySchema>;
+
+export const TiposOperacionQuerySchema = z.object({
+  activo: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
+});
+
+export type TiposOperacionQuery = z.infer<typeof TiposOperacionQuerySchema>;

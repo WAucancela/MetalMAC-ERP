@@ -32,7 +32,7 @@ const BOM_SIMPLE = {
     { materialId: 'mat-B', cantidadBase: 0.5, factorMerma: 1.0, cantidadConMerma: 0.5, unidadId: 'u2', notas: '' },
   ],
   operaciones: [
-    { tipo: 'LASER' as const, minutos: 10, costoPorMinuto: 0.5, costoTotal: 5 },
+    { tipoOperacionId: 'tipo-laser', minutos: 10, costoPorMinuto: 0.5, costoTotal: 5 },
   ],
 };
 

@@ -257,7 +257,7 @@ export async function cargarBOM(productoId: string): Promise<BOM> {
   const operaciones: OperacionBOM[] = [...data.bom_operaciones]
     .sort((a, b) => a.orden - b.orden)
     .map((o) => ({
-      tipo: o.tipo,
+      tipoOperacionId: o.tipo_operacion_id,
       minutos: Number(o.minutos),
       costoPorMinuto: Number(o.costo_por_minuto),
       costoTotal: Number(o.costo_total),

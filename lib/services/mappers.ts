@@ -8,7 +8,7 @@ import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
-  FacturaVenta, LineaFacturaVenta, Operario, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
+  FacturaVenta, LineaFacturaVenta, Operario, TipoOperacion, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
   CuentaBancaria, MovimientoBancario, CajaMovimiento,
 } from '@/types/metalmac.types';
 
@@ -20,8 +20,10 @@ type ProveedorRow = Database['public']['Tables']['proveedores']['Row'];
 type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
 type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
 type OperarioRow = Database['public']['Tables']['operarios']['Row'];
+type TipoOperacionRow = Database['public']['Tables']['tipos_operacion']['Row'];
 type OrdenOperacionRow = Database['public']['Tables']['orden_operaciones']['Row'] & {
   operarios?: Pick<OperarioRow, 'nombre'> | null;
+  tipos_operacion?: Pick<TipoOperacionRow, 'nombre'> | null;
 };
 type ProyectoRow = Database['public']['Tables']['proyectos']['Row'];
 type GastoRow = Database['public']['Tables']['gastos']['Row'];
@@ -139,12 +141,22 @@ export function mapOperarioRow(row: OperarioRow): Operario {
   };
 }
 
+export function mapTipoOperacionRow(row: TipoOperacionRow): TipoOperacion {
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    activo: row.activo,
+    creadoEn: row.creado_en,
+  };
+}
+
 export function mapOrdenOperacionRow(row: OrdenOperacionRow): OrdenOperacion {
   return {
     id: row.id,
     ordenId: row.orden_id,
     orden: row.orden,
-    tipo: row.tipo,
+    tipoOperacionId: row.tipo_operacion_id,
+    tipoOperacionNombre: row.tipos_operacion?.nombre ?? null,
     minutosPlanificados: Number(row.minutos_planificados),
     costoPorMinuto: Number(row.costo_por_minuto),
     operarioId: row.operario_id,

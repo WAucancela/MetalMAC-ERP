@@ -74,7 +74,7 @@ export function OperacionesTable({ ordenId, operaciones, editable }: Props) {
         <TableBody>
           {operaciones.map((op) => (
             <TableRow key={op.id}>
-              <TableCell className="text-sm">{op.tipo}</TableCell>
+              <TableCell className="text-sm">{op.tipoOperacionNombre ?? '—'}</TableCell>
               <TableCell className="text-right tabular-nums text-sm">{op.minutosPlanificados}</TableCell>
               <TableCell>
                 <Select

@@ -69,19 +69,19 @@ describe('LineaBOMSchema', () => {
 
 describe('OperacionBOMSchema', () => {
   it('acepta una operación válida', () => {
-    const result = OperacionBOMSchema.safeParse({ tipo: 'LASER', minutos: 10, costoPorMinuto: 0.75 });
+    const result = OperacionBOMSchema.safeParse({ tipoOperacionId: 'tipo-laser', minutos: 10, costoPorMinuto: 0.75 });
     expect(result.success).toBe(true);
   });
 
-  it('rechaza tipo de operación inválido', () => {
+  it('rechaza tipoOperacionId vacío', () => {
     expect(
-      OperacionBOMSchema.safeParse({ tipo: 'PINTURA', minutos: 10, costoPorMinuto: 0.75 }).success,
+      OperacionBOMSchema.safeParse({ tipoOperacionId: '', minutos: 10, costoPorMinuto: 0.75 }).success,
     ).toBe(false);
   });
 
   it('rechaza minutos = 0', () => {
     expect(
-      OperacionBOMSchema.safeParse({ tipo: 'LASER', minutos: 0, costoPorMinuto: 0.75 }).success,
+      OperacionBOMSchema.safeParse({ tipoOperacionId: 'tipo-laser', minutos: 0, costoPorMinuto: 0.75 }).success,
     ).toBe(false);
   });
 });

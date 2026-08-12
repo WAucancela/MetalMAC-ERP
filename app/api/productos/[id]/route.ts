@@ -53,7 +53,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     operaciones: [...bomRow.bom_operaciones]
       .sort((a, b) => a.orden - b.orden)
       .map((o): OperacionBOM => ({
-        tipo: o.tipo,
+        tipoOperacionId: o.tipo_operacion_id,
         minutos: Number(o.minutos),
         costoPorMinuto: Number(o.costo_por_minuto),
         costoTotal: Number(o.costo_total),

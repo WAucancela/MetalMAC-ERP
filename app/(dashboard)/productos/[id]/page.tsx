@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BOMTable } from '@/components/produccion/BOMTable';
 import { useProducto, useActualizarProducto } from '@/hooks/useProductos';
 import { useBOM } from '@/hooks/useBOM';
+import { useTiposOperacion } from '@/hooks/useTiposOperacion';
 
 // Para pasar al BOMTable necesitamos los catálogos de materiales y unidades
 import { useMateriales } from '@/hooks/useInventario';
@@ -26,6 +27,7 @@ export default function ProductoDetallePage() {
   const { data: bomData, isLoading: loadingBOM } = useBOM(id);
   const { data: materiales = [], isLoading: loadingMateriales } = useMateriales({ activo: true });
   const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
+  const { data: tiposOperacion = [], isLoading: loadingTiposOperacion } = useTiposOperacion({ activo: true });
   const actualizarProducto = useActualizarProducto(id);
 
   if (loadingProducto) {
@@ -63,6 +65,11 @@ export default function ProductoDetallePage() {
     id: u.id,
     nombre: u.nombre,
     simbolo: u.simbolo ?? u.nombre,
+  }));
+
+  const tiposOperacionOpciones = tiposOperacion.map((t: any) => ({
+    id: t.id,
+    nombre: t.nombre,
   }));
 
   return (
@@ -122,19 +129,20 @@ export default function ProductoDetallePage() {
       {/* BOM */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">Bill of Materials (BOM)</h2>
-        {loadingBOM || loadingMateriales || loadingUnidades ? (
+        {loadingBOM || loadingMateriales || loadingUnidades || loadingTiposOperacion ? (
           <Skeleton className="h-48 w-full" />
         ) : (
-          // BOMTable registra los <select> nativos (Unidad) con su valor inicial
-          // en el primer render — si `unidades` todavía no había llegado, el
-          // <option> correspondiente no existía aún y el navegador descartaba
-          // ese valor sin volver a aplicarlo después. Por eso se espera acá a
-          // materiales/unidades también, no solo al BOM en sí.
+          // BOMTable registra los <select> nativos (Unidad, Tipo de operación) con
+          // su valor inicial en el primer render — si el catálogo correspondiente
+          // todavía no había llegado, el <option> no existía aún y el navegador
+          // descartaba ese valor sin volver a aplicarlo después. Por eso se espera
+          // acá a los 4 catálogos, no solo al BOM en sí.
           <BOMTable
             productoId={id}
             initialData={bomData ?? undefined}
             materiales={materialesOpciones}
             unidades={unidadesOpciones}
+            tiposOperacion={tiposOperacionOpciones}
           />
         )}
       </div>

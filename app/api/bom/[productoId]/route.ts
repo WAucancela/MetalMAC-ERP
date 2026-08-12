@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: { productoId: 
     notas: l.notas,
   }));
   const operaciones = [...bomRow.bom_operaciones].sort((a, b) => a.orden - b.orden).map((o) => ({
-    tipo: o.tipo,
+    tipoOperacionId: o.tipo_operacion_id,
     minutos: Number(o.minutos),
     costoPorMinuto: Number(o.costo_por_minuto),
     costoTotal: Number(o.costo_total),
@@ -179,7 +179,7 @@ export async function PUT(request: Request, { params }: { params: { productoId: 
         parsed.data.operaciones.map((op, orden) => ({
           bom_producto_id: params.productoId,
           orden,
-          tipo: op.tipo,
+          tipo_operacion_id: op.tipoOperacionId,
           minutos: op.minutos,
           costo_por_minuto: op.costoPorMinuto,
           costo_total: new Decimal(op.minutos).times(op.costoPorMinuto).toDecimalPlaces(4).toNumber(),

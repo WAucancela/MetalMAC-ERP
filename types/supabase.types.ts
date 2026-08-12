@@ -105,7 +105,7 @@ export type Database = {
           id: string
           minutos: number
           orden: number
-          tipo: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id: string
         }
         Insert: {
           bom_producto_id: string
@@ -114,7 +114,7 @@ export type Database = {
           id?: string
           minutos: number
           orden: number
-          tipo: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id: string
         }
         Update: {
           bom_producto_id?: string
@@ -123,7 +123,7 @@ export type Database = {
           id?: string
           minutos?: number
           orden?: number
-          tipo?: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id?: string
         }
         Relationships: [
           {
@@ -132,6 +132,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "boms"
             referencedColumns: ["producto_id"]
+          },
+          {
+            foreignKeyName: "bom_operaciones_tipo_operacion_id_fkey"
+            columns: ["tipo_operacion_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_operacion"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1039,7 +1046,7 @@ export type Database = {
           operario_id: string | null
           orden: number
           orden_id: string
-          tipo: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id: string
         }
         Insert: {
           completada_en?: string | null
@@ -1052,7 +1059,7 @@ export type Database = {
           operario_id?: string | null
           orden: number
           orden_id: string
-          tipo: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id: string
         }
         Update: {
           completada_en?: string | null
@@ -1065,7 +1072,7 @@ export type Database = {
           operario_id?: string | null
           orden?: number
           orden_id?: string
-          tipo?: Database["public"]["Enums"]["tipo_operacion"]
+          tipo_operacion_id?: string
         }
         Relationships: [
           {
@@ -1080,6 +1087,13 @@ export type Database = {
             columns: ["orden_id"]
             isOneToOne: false
             referencedRelation: "ordenes_produccion"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orden_operaciones_tipo_operacion_id_fkey"
+            columns: ["tipo_operacion_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_operacion"
             referencedColumns: ["id"]
           },
         ]
@@ -1612,6 +1626,27 @@ export type Database = {
           },
         ]
       }
+      tipos_operacion: {
+        Row: {
+          activo: boolean
+          creado_en: string
+          id: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean
+          creado_en?: string
+          id?: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean
+          creado_en?: string
+          id?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
       unidades_medida: {
         Row: {
           id: string
@@ -1903,7 +1938,6 @@ export type Database = {
         | "COBRO_CLIENTE"
         | "AJUSTE"
       tipo_movimiento_caja: "INGRESO" | "EGRESO"
-      tipo_operacion: "LASER" | "SOLDADURA" | "DOBLADO" | "ENSAMBLE"
       tipo_producto: "PRODUCTO_TERMINADO" | "SEMIELABORADO"
       tipo_retencion: "RENTA" | "IVA"
       tipo_unidad_medida: "PESO" | "LONGITUD" | "AREA" | "VOLUMEN" | "UNIDAD"
@@ -2098,7 +2132,6 @@ export const Constants = {
         "AJUSTE",
       ],
       tipo_movimiento_caja: ["INGRESO", "EGRESO"],
-      tipo_operacion: ["LASER", "SOLDADURA", "DOBLADO", "ENSAMBLE"],
       tipo_producto: ["PRODUCTO_TERMINADO", "SEMIELABORADO"],
       tipo_retencion: ["RENTA", "IVA"],
       tipo_unidad_medida: ["PESO", "LONGITUD", "AREA", "VOLUMEN", "UNIDAD"],

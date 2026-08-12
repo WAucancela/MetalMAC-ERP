@@ -26,7 +26,7 @@ const BOM = {
     { materialId: 'mat-pintura', cantidadBase: 0.5, factorMerma: 1.0, cantidadConMerma: 0.5, unidadId: 'lt', notas: '' },
   ],
   operaciones: [
-    { tipo: 'SOLDADURA' as const, minutos: 20, costoPorMinuto: 0.75, costoTotal: 15 },
+    { tipoOperacionId: 'tipo-soldadura', minutos: 20, costoPorMinuto: 0.75, costoTotal: 15 },
   ],
 };
 
