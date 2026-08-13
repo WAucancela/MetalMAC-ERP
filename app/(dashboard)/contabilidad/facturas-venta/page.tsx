@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { Badge }    from '@/components/ui/badge';
@@ -120,7 +120,7 @@ export default function FacturasVentaPage() {
                   <p className="text-xs text-muted-foreground font-mono">{f.clienteRuc}</p>
                 </TableCell>
                 <TableCell className="text-sm">
-                  {format(new Date(f.fechaEmision), 'dd MMM yyyy', { locale: es })}
+                  {format(parseISO(f.fechaEmision), 'dd MMM yyyy', { locale: es })}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium">{formatUSD(f.total)}</TableCell>
                 <TableCell>

@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, Plus, Loader2 } from 'lucide-react';
 
@@ -138,7 +138,7 @@ export default function CuentaBancariaDetallePage() {
               const esIngreso = m.tipo === 'DEPOSITO' || m.tipo === 'COBRO_CLIENTE';
               return (
                 <TableRow key={m.id}>
-                  <TableCell className="text-sm">{format(new Date(m.fecha), 'dd MMM yyyy', { locale: es })}</TableCell>
+                  <TableCell className="text-sm">{format(parseISO(m.fecha), 'dd MMM yyyy', { locale: es })}</TableCell>
                   <TableCell><Badge variant="secondary">{m.tipo}</Badge></TableCell>
                   <TableCell className="text-sm">{m.descripcion || '—'}</TableCell>
                   <TableCell className="text-right tabular-nums text-sm font-medium">

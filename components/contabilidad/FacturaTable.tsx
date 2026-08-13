@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -135,7 +135,7 @@ export default function FacturaTable({ proveedorId }: FacturaTableProps) {
                   <td className="px-4 py-3 font-mono text-xs">{f.numeroFactura}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {f.fechaEmision
-                      ? format(new Date(f.fechaEmision), 'dd MMM yyyy', { locale: es })
+                      ? format(parseISO(f.fechaEmision), 'dd MMM yyyy', { locale: es })
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-right">${f.subtotalSinIva.toFixed(2)}</td>

@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, Plus, Loader2 } from 'lucide-react';
 
@@ -191,7 +191,7 @@ export default function GastosGeneralesPage() {
               {gastos.map((g: any) => (
                 <TableRow key={g.id}>
                   <TableCell className="text-sm">
-                    {format(new Date(g.fecha), 'dd MMM yyyy', { locale: es })}
+                    {format(parseISO(g.fecha), 'dd MMM yyyy', { locale: es })}
                   </TableCell>
                   <TableCell className="text-sm">{g.categoria}</TableCell>
                   <TableCell className="text-sm">{g.descripcion}</TableCell>
