@@ -104,7 +104,7 @@ export default function InventarioPage() {
 
       {/* Tabla */}
       <div className="rounded-lg border border-border bg-card">
-        <Table>
+        <Table className="[&_th]:h-9 [&_td]:py-2">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-36">Código</TableHead>
