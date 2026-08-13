@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase.types';
 
 type CajaMovimientoRow = Database['public']['Tables']['caja_chica_movimientos']['Row'];
+type CajaMovimientoUpdate = Database['public']['Tables']['caja_chica_movimientos']['Update'];
 type TipoMovimientoCaja = Database['public']['Enums']['tipo_movimiento_caja'];
 
 // ─────────────────────────────────────────────
@@ -53,4 +54,44 @@ export async function crearMovimientoCaja(input: {
     .single();
   if (error) throw error;
   return data;
+}
+
+/** Corrige un movimiento existente (typo en el concepto, monto o fecha mal tipeados). */
+export async function actualizarMovimientoCaja(
+  id: string,
+  input: {
+    tipo?: TipoMovimientoCaja;
+    monto?: number;
+    fecha?: string;
+    concepto?: string;
+    centroCostoId?: string | null;
+  },
+): Promise<CajaMovimientoRow | null> {
+  const update: CajaMovimientoUpdate = {};
+  if (input.tipo !== undefined) update.tipo = input.tipo;
+  if (input.monto !== undefined) update.monto = input.monto;
+  if (input.fecha !== undefined) update.fecha = input.fecha;
+  if (input.concepto !== undefined) update.concepto = input.concepto;
+  if (input.centroCostoId !== undefined) update.centro_costo_id = input.centroCostoId;
+
+  const { data, error } = await supabaseAdmin
+    .from('caja_chica_movimientos')
+    .update(update)
+    .eq('id', id)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Elimina un movimiento cargado por error. Devuelve false si el id no existía. */
+export async function eliminarMovimientoCaja(id: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin
+    .from('caja_chica_movimientos')
+    .delete()
+    .eq('id', id)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
 }
