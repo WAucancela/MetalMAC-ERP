@@ -7,7 +7,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, XCircle, Zap, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { useFacturaVenta, useAnularFacturaVenta, useEmitirFacturaVenta } from '@/hooks/useFacturasVenta';
@@ -147,7 +147,7 @@ export default function FacturaVentaDetallePage() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Fecha emisión</dt>
-              <dd>{format(new Date(factura.fechaEmision), 'dd MMM yyyy', { locale: es })}</dd>
+              <dd>{format(parseISO(factura.fechaEmision), 'dd MMM yyyy', { locale: es })}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Clave acceso SRI</dt>

@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { ChevronLeft } from 'lucide-react';
@@ -40,7 +40,7 @@ function FilaCuentaPorCobrar({ cuenta }: { cuenta: CuentaPorCobrar }) {
         <TableCell className="font-mono text-sm">{cuenta.numeroFactura || '—'}</TableCell>
         <TableCell className="text-sm">{cuenta.clienteNombre}</TableCell>
         <TableCell className="text-sm">
-          {cuenta.fechaVencimiento ? format(new Date(cuenta.fechaVencimiento), 'dd MMM yyyy', { locale: es }) : '—'}
+          {cuenta.fechaVencimiento ? format(parseISO(cuenta.fechaVencimiento), 'dd MMM yyyy', { locale: es }) : '—'}
         </TableCell>
         <TableCell><AntiguedadBadge bucket={cuenta.antiguedad} /></TableCell>
         <TableCell className="text-right tabular-nums text-sm font-medium">${cuenta.saldo.toFixed(2)}</TableCell>
