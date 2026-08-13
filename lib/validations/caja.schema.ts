@@ -9,6 +9,11 @@ export const CajaMovimientoSchema = z.object({
 });
 export type CajaMovimientoInput = z.infer<typeof CajaMovimientoSchema>;
 
+// Edición: mismos campos, todos opcionales — permite corregir un solo dato
+// (ej. un typo en el concepto) sin tener que reenviar el movimiento entero.
+export const ActualizarCajaMovimientoSchema = CajaMovimientoSchema.partial();
+export type ActualizarCajaMovimientoInput = z.infer<typeof ActualizarCajaMovimientoSchema>;
+
 export const CajaMovimientosQuerySchema = z.object({
   desde: z.string().optional(),
   hasta: z.string().optional(),
