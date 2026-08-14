@@ -418,6 +418,135 @@ export type Database = {
         }
         Relationships: []
       }
+      cotizacion_lineas: {
+        Row: {
+          cantidad: number
+          cotizacion_id: string
+          descripcion: string
+          id: string
+          material_id: string | null
+          orden: number
+          precio_unitario: number
+          producto_id: string | null
+          subtotal: number
+        }
+        Insert: {
+          cantidad: number
+          cotizacion_id: string
+          descripcion: string
+          id?: string
+          material_id?: string | null
+          orden: number
+          precio_unitario: number
+          producto_id?: string | null
+          subtotal: number
+        }
+        Update: {
+          cantidad?: number
+          cotizacion_id?: string
+          descripcion?: string
+          id?: string
+          material_id?: string | null
+          orden?: number
+          precio_unitario?: number
+          producto_id?: string | null
+          subtotal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotizacion_lineas_cotizacion_id_fkey"
+            columns: ["cotizacion_id"]
+            isOneToOne: false
+            referencedRelation: "cotizaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotizacion_lineas_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cotizacion_lineas_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotizaciones: {
+        Row: {
+          cliente_email: string
+          cliente_nombre: string
+          cliente_whatsapp: string
+          creado_en: string
+          creado_por: string
+          email_enviado_en: string | null
+          estado: Database["public"]["Enums"]["estado_cotizacion"]
+          fecha_emision: string
+          fecha_vencimiento: string
+          id: string
+          iva: number
+          notas: string
+          numero: string
+          proyecto_id: string | null
+          subtotal_sin_iva: number
+          total: number
+          ultimo_seguimiento_en: string | null
+          veces_recordado: number
+        }
+        Insert: {
+          cliente_email?: string
+          cliente_nombre: string
+          cliente_whatsapp?: string
+          creado_en?: string
+          creado_por: string
+          email_enviado_en?: string | null
+          estado?: Database["public"]["Enums"]["estado_cotizacion"]
+          fecha_emision: string
+          fecha_vencimiento: string
+          id?: string
+          iva?: number
+          notas?: string
+          numero: string
+          proyecto_id?: string | null
+          subtotal_sin_iva?: number
+          total?: number
+          ultimo_seguimiento_en?: string | null
+          veces_recordado?: number
+        }
+        Update: {
+          cliente_email?: string
+          cliente_nombre?: string
+          cliente_whatsapp?: string
+          creado_en?: string
+          creado_por?: string
+          email_enviado_en?: string | null
+          estado?: Database["public"]["Enums"]["estado_cotizacion"]
+          fecha_emision?: string
+          fecha_vencimiento?: string
+          id?: string
+          iva?: number
+          notas?: string
+          numero?: string
+          proyecto_id?: string | null
+          subtotal_sin_iva?: number
+          total?: number
+          ultimo_seguimiento_en?: string | null
+          veces_recordado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotizaciones_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cuentas_bancarias: {
         Row: {
           activo: boolean
@@ -1893,6 +2022,12 @@ export type Database = {
         | "ADMINISTRATIVO"
         | "OTRO"
         | "PRODUCCION"
+      estado_cotizacion:
+        | "BORRADOR"
+        | "ENVIADA"
+        | "APROBADA"
+        | "RECHAZADA"
+        | "VENCIDA"
       estado_factura_compra: "PENDIENTE" | "PROCESADA" | "ANULADA"
       estado_factura_venta: "BORRADOR" | "EMITIDA" | "ANULADA"
       estado_operacion_produccion: "PENDIENTE" | "COMPLETADA"
@@ -2080,6 +2215,13 @@ export const Constants = {
         "ADMINISTRATIVO",
         "OTRO",
         "PRODUCCION",
+      ],
+      estado_cotizacion: [
+        "BORRADOR",
+        "ENVIADA",
+        "APROBADA",
+        "RECHAZADA",
+        "VENCIDA",
       ],
       estado_factura_compra: ["PENDIENTE", "PROCESADA", "ANULADA"],
       estado_factura_venta: ["BORRADOR", "EMITIDA", "ANULADA"],

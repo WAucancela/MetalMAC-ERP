@@ -301,6 +301,43 @@ export interface PagoFacturaCompra {
 }
 
 // ─────────────────────────────────────────────
+// Contabilidad: Cotizaciones
+// ─────────────────────────────────────────────
+
+export type EstadoCotizacion = 'BORRADOR' | 'ENVIADA' | 'APROBADA' | 'RECHAZADA' | 'VENCIDA';
+
+export interface LineaCotizacion {
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  productoId: string | null;
+  materialId: string | null;
+}
+
+export interface Cotizacion {
+  id: string;
+  numero: string;
+  clienteNombre: string;
+  clienteEmail: string;
+  clienteWhatsapp: string;
+  proyectoId: string | null;
+  estado: EstadoCotizacion;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  subtotalSinIva: number;
+  iva: number;
+  total: number;
+  notas: string;
+  lineas: LineaCotizacion[];
+  emailEnviadoEn: string | null;
+  ultimoSeguimientoEn: string | null;
+  vecesRecordado: number;
+  creadoEn: string;
+  creadoPor: string;
+}
+
+// ─────────────────────────────────────────────
 // Contabilidad: Facturas de Venta
 // ─────────────────────────────────────────────
 

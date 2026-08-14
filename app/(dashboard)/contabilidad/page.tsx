@@ -6,10 +6,11 @@
 
 import Link from 'next/link';
 import {
-  FileText, Receipt, ArrowDownToLine, ArrowUpFromLine, Wallet, Landmark, Boxes,
+  FileText, FileSignature, Receipt, ArrowDownToLine, ArrowUpFromLine, Wallet, Landmark, Boxes,
 } from 'lucide-react';
 
 const SECCIONES = [
+  { href: '/contabilidad/cotizaciones',      icon: FileSignature,  titulo: 'Cotizaciones',       descripcion: 'Propuestas de precio a clientes, con seguimiento automático por email.' },
   { href: '/contabilidad/facturas-compra',   icon: FileText,        titulo: 'Facturas de Compra', descripcion: 'Facturas recibidas de proveedores.' },
   { href: '/contabilidad/facturas-venta',    icon: Receipt,         titulo: 'Facturas de Venta',  descripcion: 'Facturación electrónica a clientes.' },
   { href: '/contabilidad/cuentas-por-cobrar', icon: ArrowDownToLine, titulo: 'Cuentas por Cobrar',  descripcion: 'Saldos pendientes de clientes, con antigüedad.' },

@@ -9,7 +9,7 @@ import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
   FacturaVenta, LineaFacturaVenta, Operario, TipoOperacion, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
-  CuentaBancaria, MovimientoBancario, CajaMovimiento,
+  CuentaBancaria, MovimientoBancario, CajaMovimiento, Cotizacion, LineaCotizacion,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -40,6 +40,8 @@ type CobroFacturaVentaRow = Database['public']['Tables']['cobros_factura_venta']
 type CuentaBancariaRow = Database['public']['Tables']['cuentas_bancarias']['Row'];
 type MovimientoBancarioRow = Database['public']['Tables']['movimientos_bancarios']['Row'];
 type CajaMovimientoRow = Database['public']['Tables']['caja_chica_movimientos']['Row'];
+type CotizacionRow = Database['public']['Tables']['cotizaciones']['Row'];
+type CotizacionLineaRow = Database['public']['Tables']['cotizacion_lineas']['Row'];
 
 export function mapMaterialRow(row: MaterialRow): Material {
   return {
@@ -408,6 +410,37 @@ export function mapCajaMovimientoRow(row: CajaMovimientoRow): CajaMovimiento {
     fecha: row.fecha,
     concepto: row.concepto,
     centroCostoId: row.centro_costo_id,
+    creadoEn: row.creado_en,
+    creadoPor: row.creado_por,
+  };
+}
+
+export function mapCotizacionRow(row: CotizacionRow, lineas: CotizacionLineaRow[] = []): Cotizacion {
+  return {
+    id: row.id,
+    numero: row.numero,
+    clienteNombre: row.cliente_nombre,
+    clienteEmail: row.cliente_email,
+    clienteWhatsapp: row.cliente_whatsapp,
+    proyectoId: row.proyecto_id,
+    estado: row.estado,
+    fechaEmision: row.fecha_emision,
+    fechaVencimiento: row.fecha_vencimiento,
+    subtotalSinIva: Number(row.subtotal_sin_iva),
+    iva: Number(row.iva),
+    total: Number(row.total),
+    notas: row.notas,
+    lineas: [...lineas].sort((a, b) => a.orden - b.orden).map((l): LineaCotizacion => ({
+      descripcion: l.descripcion,
+      cantidad: Number(l.cantidad),
+      precioUnitario: Number(l.precio_unitario),
+      subtotal: Number(l.subtotal),
+      productoId: l.producto_id,
+      materialId: l.material_id,
+    })),
+    emailEnviadoEn: row.email_enviado_en,
+    ultimoSeguimientoEn: row.ultimo_seguimiento_en,
+    vecesRecordado: row.veces_recordado,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
   };
