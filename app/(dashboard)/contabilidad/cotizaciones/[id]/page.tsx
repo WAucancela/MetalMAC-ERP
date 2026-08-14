@@ -1,27 +1,35 @@
 /**
  * /contabilidad/cotizaciones/[id] — detalle de una cotización.
  * Acciones según estado: BORRADOR -> enviar por email o eliminar;
- * ENVIADA/VENCIDA -> marcar aprobada/rechazada. PDF descargable siempre.
+ * ENVIADA/VENCIDA -> marcar aprobada/rechazada; APROBADA sin proyecto -> convertir
+ * a Proyecto. PDF descargable siempre.
  */
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, Send, Check, X, Trash2, Loader2 } from 'lucide-react';
+import { ChevronLeft, Send, Check, X, Trash2, Loader2, FolderPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExportButton } from '@/components/ui/ExportButton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 import {
-  useCotizacion, useEnviarCotizacion, useCambiarEstadoCotizacion, useEliminarCotizacion,
+  useCotizacion, useEnviarCotizacion, useCambiarEstadoCotizacion, useEliminarCotizacion, useConvertirCotizacion,
 } from '@/hooks/useCotizaciones';
-import type { EstadoCotizacion } from '@/types/metalmac.types';
+import { ConvertirCotizacionSchema, type ConvertirCotizacionInput } from '@/lib/validations/cotizaciones.schema';
+import type { Cotizacion, EstadoCotizacion } from '@/types/metalmac.types';
 
 const ESTADO_VARIANT: Record<EstadoCotizacion, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   BORRADOR:  'secondary',
@@ -31,6 +39,67 @@ const ESTADO_VARIANT: Record<EstadoCotizacion, 'default' | 'secondary' | 'outlin
   VENCIDA:   'destructive',
 };
 
+/** Modal de conversión — precarga nombre/presupuesto desde la cotización, editable. */
+function ConvertirAProyectoDialog({ cotizacion, onClose }: { cotizacion: Cotizacion; onClose: () => void }) {
+  const router = useRouter();
+  const convertir = useConvertirCotizacion(cotizacion.id);
+
+  const { register, handleSubmit, formState: { errors } } = useForm<ConvertirCotizacionInput>({
+    resolver: zodResolver(ConvertirCotizacionSchema),
+    defaultValues: {
+      nombre: `${cotizacion.clienteNombre} — ${cotizacion.numero}`,
+      fechaInicio: new Date().toISOString().slice(0, 10),
+      presupuesto: cotizacion.total,
+    },
+  });
+
+  const onSubmit = async (data: ConvertirCotizacionInput) => {
+    try {
+      const res = await convertir.mutateAsync(data);
+      toast.success(`Proyecto ${res.proyectoCodigo} creado`);
+      onClose();
+      router.push(`/proyectos/${res.proyectoId}`);
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al convertir la cotización');
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Convertir a proyecto</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nombre del proyecto</Label>
+            <Input {...register('nombre')} />
+            {errors.nombre && <p className="text-xs text-red-500">{errors.nombre.message}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Fecha de inicio</Label>
+              <Input type="date" {...register('fechaInicio')} />
+              {errors.fechaInicio && <p className="text-xs text-red-500">{errors.fechaInicio.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Presupuesto (USD)</Label>
+              <Input type="number" min={0.01} step="0.01" {...register('presupuesto', { valueAsNumber: true })} />
+              {errors.presupuesto && <p className="text-xs text-red-500">{errors.presupuesto.message}</p>}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={convertir.isPending}>
+              {convertir.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Crear proyecto'}
+            </Button>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CotizacionDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -39,6 +108,7 @@ export default function CotizacionDetallePage() {
   const enviar = useEnviarCotizacion(id);
   const cambiarEstado = useCambiarEstadoCotizacion(id);
   const eliminar = useEliminarCotizacion();
+  const [convirtiendo, setConvirtiendo] = useState(false);
 
   const handleEnviar = async () => {
     try {
@@ -119,6 +189,11 @@ export default function CotizacionDetallePage() {
               <X className="mr-2 h-4 w-4" /> Marcar rechazada
             </Button>
           </>
+        )}
+        {cotizacion.estado === 'APROBADA' && !cotizacion.proyectoId && (
+          <Button onClick={() => setConvirtiendo(true)}>
+            <FolderPlus className="mr-2 h-4 w-4" /> Convertir a proyecto
+          </Button>
         )}
       </div>
 
@@ -203,6 +278,10 @@ export default function CotizacionDetallePage() {
           <p className="text-xs text-muted-foreground mb-1">Notas</p>
           <p className="text-sm whitespace-pre-wrap">{cotizacion.notas}</p>
         </div>
+      )}
+
+      {convirtiendo && (
+        <ConvertirAProyectoDialog cotizacion={cotizacion} onClose={() => setConvirtiendo(false)} />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import {
   CotizacionSchema,
   ActualizarCotizacionSchema,
   CambiarEstadoCotizacionSchema,
+  ConvertirCotizacionSchema,
   CotizacionesQuerySchema,
 } from '../lib/validations/cotizaciones.schema';
 
@@ -73,6 +74,22 @@ describe('CambiarEstadoCotizacionSchema', () => {
 
   it('rechaza BORRADOR (no es una transición válida vía este endpoint)', () => {
     expect(CambiarEstadoCotizacionSchema.safeParse({ estado: 'BORRADOR' }).success).toBe(false);
+  });
+});
+
+describe('ConvertirCotizacionSchema', () => {
+  const base = { nombre: 'Constructora XYZ — COT-2026-0001', fechaInicio: '2026-08-13', presupuesto: 1500 };
+
+  it('acepta datos válidos', () => {
+    expect(ConvertirCotizacionSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('rechaza presupuesto <= 0', () => {
+    expect(ConvertirCotizacionSchema.safeParse({ ...base, presupuesto: 0 }).success).toBe(false);
+  });
+
+  it('rechaza nombre vacío', () => {
+    expect(ConvertirCotizacionSchema.safeParse({ ...base, nombre: '' }).success).toBe(false);
   });
 });
 
