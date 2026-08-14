@@ -33,6 +33,13 @@ export const CambiarEstadoCotizacionSchema = z.object({
 });
 export type CambiarEstadoCotizacionInput = z.infer<typeof CambiarEstadoCotizacionSchema>;
 
+export const ConvertirCotizacionSchema = z.object({
+  nombre: z.string().min(2).max(200),
+  fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato ISO: YYYY-MM-DD'),
+  presupuesto: z.number().positive('El presupuesto debe ser mayor a 0'),
+});
+export type ConvertirCotizacionInput = z.infer<typeof ConvertirCotizacionSchema>;
+
 export const CotizacionesQuerySchema = z.object({
   estado: z.enum(['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA', 'VENCIDA']).optional(),
   proyectoId: z.string().optional(),

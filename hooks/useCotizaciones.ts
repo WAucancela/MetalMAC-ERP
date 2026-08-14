@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import type { Cotizacion, EstadoCotizacion } from '@/types/metalmac.types';
-import type { CotizacionInput, ActualizarCotizacionInput } from '@/lib/validations/cotizaciones.schema';
+import type { CotizacionInput, ActualizarCotizacionInput, ConvertirCotizacionInput } from '@/lib/validations/cotizaciones.schema';
 
 const BASE = '/api/cotizaciones';
 
@@ -131,6 +131,29 @@ export function useEnviarCotizacion(id: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cotizaciones'] });
       qc.invalidateQueries({ queryKey: ['cotizaciones', id] });
+    },
+  });
+}
+
+/** Cotización APROBADA -> crea el Proyecto y la vincula. */
+export function useConvertirCotizacion(id: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: ConvertirCotizacionInput) => {
+      const res = await fetch(`${BASE}/${id}/convertir`, {
+        method: 'POST',
+        headers: { ...authHeaders(token ?? ''), 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      return json as { ok: true; proyectoId: string; proyectoCodigo: string };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cotizaciones'] });
+      qc.invalidateQueries({ queryKey: ['cotizaciones', id] });
+      qc.invalidateQueries({ queryKey: ['proyectos'] });
     },
   });
 }
