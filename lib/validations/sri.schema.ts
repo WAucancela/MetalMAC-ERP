@@ -41,6 +41,21 @@ export const TablaEquivalenciaSchema = z.object({
 
 export type TablaEquivalenciaInput = z.infer<typeof TablaEquivalenciaSchema>;
 
+/**
+ * Mapea manualmente una línea "sin resolver" de una factura ya guardada a un
+ * material del inventario. A diferencia de TablaEquivalenciaSchema (alta directa
+ * de una equivalencia), acá proveedorId/codigoProveedor/descripcionProveedor/
+ * precioReferencia se derivan en el server desde la línea y la factura — el
+ * usuario solo elige material, unidad del proveedor y factor de conversión.
+ */
+export const MapearLineaFacturaSchema = z.object({
+  materialId: z.string().min(1),
+  unidadProveedorId: z.string().min(1),
+  factorConversion: z.number().positive('El factor debe ser mayor a 0').default(1),
+});
+
+export type MapearLineaFacturaInput = z.infer<typeof MapearLineaFacturaSchema>;
+
 // ─────────────────────────────────────────────
 // Factura de Compra (creación manual / después de parsear XML)
 // ─────────────────────────────────────────────

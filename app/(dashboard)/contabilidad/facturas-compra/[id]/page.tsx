@@ -10,7 +10,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle, XCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { useFactura, useActualizarEstadoFactura } from '@/hooks/useFacturas';
@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { MapearMaterialPopover } from '@/components/contabilidad/MapearMaterialPopover';
 
 type EstadoFactura = 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
 
@@ -30,18 +31,9 @@ const ESTADO_BADGE: Record<EstadoFactura, { label: string; variant: 'default' | 
   ANULADA:   { label: 'Anulada',   variant: 'destructive' },
 };
 
-function tsToDate(ts: unknown): Date | null {
-  if (!ts) return null;
-  if (typeof ts === 'object' && ts !== null && 'seconds' in ts) {
-    return new Date((ts as { seconds: number }).seconds * 1000);
-  }
-  return null;
-}
-
-function formatDate(ts: unknown): string {
-  const d = tsToDate(ts);
-  if (!d) return '—';
-  return format(d, 'dd/MM/yyyy', { locale: es });
+function formatDate(fecha: string | null | undefined): string {
+  if (!fecha) return '—';
+  return format(parseISO(fecha), 'dd/MM/yyyy', { locale: es });
 }
 
 function formatUSD(n: number | undefined): string {
@@ -243,7 +235,7 @@ export default function FacturaDetallePage() {
                       {linea.materialId}
                     </Link>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Sin mapear</span>
+                    <MapearMaterialPopover facturaId={id} lineaId={linea.id} />
                   )}
                 </TableCell>
               </TableRow>

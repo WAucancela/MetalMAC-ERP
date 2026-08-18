@@ -252,6 +252,7 @@ export class MaterialNoEncontradoError extends Error {
 // ─────────────────────────────────────────────
 
 export interface LineaFacturaCompra {
+  id: string;
   codigoProveedor: string;
   descripcion: string;
   cantidad: number;

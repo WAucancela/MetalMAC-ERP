@@ -236,6 +236,7 @@ export function mapFacturaCompraRow(
     xmlUrl: row.xml_url,
     estado: row.estado,
     lineas: [...lineas].sort((a, b) => a.orden - b.orden).map((l): LineaFacturaCompra => ({
+      id: l.id,
       codigoProveedor: l.codigo_proveedor,
       descripcion: l.descripcion,
       cantidad: Number(l.cantidad),
