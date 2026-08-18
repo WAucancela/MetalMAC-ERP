@@ -244,6 +244,25 @@ describe('parsearXML', () => {
     const xmlMalaClave = buildXML({ claveAcceso: '0'.repeat(49) });
     expect(() => parsearXML(xmlMalaClave)).toThrow(CError);
   });
+
+  // La descarga "comprobante autorizado" del portal del SRI (y la mayoría de los XML
+  // que mandan los proveedores) no es la <factura> directamente: viene envuelta en
+  // <autorizacion><comprobante><![CDATA[<factura>...]]></comprobante></autorizacion>.
+  it('parsea un XML envuelto en <autorizacion><comprobante><![CDATA[...]]>', () => {
+    const facturaXml = buildXML();
+    const envuelto = `<?xml version="1.0" encoding="UTF-8"?>
+<autorizacion>
+  <estado>AUTORIZADO</estado>
+  <numeroAutorizacion>${buildClaveValida()}</numeroAutorizacion>
+  <fechaAutorizacion>2026-08-17T10:00:00.000-05:00</fechaAutorizacion>
+  <ambiente>PRODUCCION</ambiente>
+  <comprobante><![CDATA[${facturaXml}]]></comprobante>
+</autorizacion>`;
+
+    const result = parsearXML(envuelto);
+    expect(result.numeroFactura).toBe('001-001-000000001');
+    expect(result.lineas).toHaveLength(1);
+  });
 });
 
 // ─────────────────────────────────────────────
