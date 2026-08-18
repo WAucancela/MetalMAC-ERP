@@ -5,6 +5,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { FileText, CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -132,7 +133,11 @@ export default function FacturaTable({ proveedorId }: FacturaTableProps) {
             <tbody className="divide-y">
               {facturas.map((f) => (
                 <tr key={f.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs">{f.numeroFactura}</td>
+                  <td className="px-4 py-3 font-mono text-xs">
+                    <Link href={`/contabilidad/facturas-compra/${f.id}`} className="text-blue-600 hover:underline">
+                      {f.numeroFactura}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {f.fechaEmision
                       ? format(parseISO(f.fechaEmision), 'dd MMM yyyy', { locale: es })
@@ -143,26 +148,31 @@ export default function FacturaTable({ proveedorId }: FacturaTableProps) {
                   <td className="px-4 py-3 text-right font-semibold">${f.total.toFixed(2)}</td>
                   <td className="px-4 py-3"><EstadoBadge estado={f.estado} /></td>
                   <td className="px-4 py-3">
-                    {f.estado === 'PENDIENTE' && (
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs text-green-700 hover:text-green-800"
-                          onClick={() => handleProcesar(f.id)}
-                        >
-                          Procesar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs text-red-600 hover:text-red-700"
-                          onClick={() => handleAnular(f.id)}
-                        >
-                          Anular
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" asChild>
+                        <Link href={`/contabilidad/facturas-compra/${f.id}`}>Ver</Link>
+                      </Button>
+                      {f.estado === 'PENDIENTE' && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-green-700 hover:text-green-800"
+                            onClick={() => handleProcesar(f.id)}
+                          >
+                            Procesar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-red-600 hover:text-red-700"
+                            onClick={() => handleAnular(f.id)}
+                          >
+                            Anular
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
