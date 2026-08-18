@@ -169,6 +169,20 @@ export function parsearXML(xmlString: string): FacturaXMLParseada {
     throw new XMLInvalidoError(`No se pudo parsear el XML: ${(e as Error).message}`);
   }
 
+  // La descarga "comprobante autorizado" del portal del SRI (y la mayoría de los XML
+  // que mandan los proveedores por correo) no es la factura directamente: es
+  // <autorizacion><comprobante><![CDATA[<factura>...</factura>]]></comprobante></autorizacion>.
+  // fast-xml-parser deja ese CDATA como texto plano en `comprobante` (no lo interpreta
+  // como XML anidado) — hay que volver a parsearlo como un segundo XML.
+  const autorizacion = parsed['autorizacion'] as Record<string, unknown> | undefined;
+  if (autorizacion && typeof autorizacion['comprobante'] === 'string') {
+    try {
+      parsed = xmlParser.parse(autorizacion['comprobante'] as string) as Record<string, unknown>;
+    } catch (e) {
+      throw new XMLInvalidoError(`No se pudo parsear el comprobante dentro de <autorizacion>: ${(e as Error).message}`);
+    }
+  }
+
   // El comprobante puede venir envuelto en <comprobanteXml> (autorizado) o directo
   const root =
     (parsed['comprobanteXml'] as Record<string, unknown>) ??
