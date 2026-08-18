@@ -6,11 +6,12 @@
  */
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Download, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { useFactura, useActualizarEstadoFactura } from '@/hooks/useFacturas';
@@ -21,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import { MapearMaterialPopover } from '@/components/contabilidad/MapearMaterialPopover';
+import { CrearGastoDesdeFacturaDialog } from '@/components/contabilidad/CrearGastoDesdeFacturaDialog';
 
 type EstadoFactura = 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
 
@@ -30,18 +33,9 @@ const ESTADO_BADGE: Record<EstadoFactura, { label: string; variant: 'default' | 
   ANULADA:   { label: 'Anulada',   variant: 'destructive' },
 };
 
-function tsToDate(ts: unknown): Date | null {
-  if (!ts) return null;
-  if (typeof ts === 'object' && ts !== null && 'seconds' in ts) {
-    return new Date((ts as { seconds: number }).seconds * 1000);
-  }
-  return null;
-}
-
-function formatDate(ts: unknown): string {
-  const d = tsToDate(ts);
-  if (!d) return '—';
-  return format(d, 'dd/MM/yyyy', { locale: es });
+function formatDate(fecha: string | null | undefined): string {
+  if (!fecha) return '—';
+  return format(parseISO(fecha), 'dd/MM/yyyy', { locale: es });
 }
 
 function formatUSD(n: number | undefined): string {
@@ -56,6 +50,7 @@ export default function FacturaDetallePage() {
   const { data: factura, isLoading, isError } = useFactura(id);
   const { data: proveedorData } = useProveedor(factura?.proveedorId ?? '');
   const { mutateAsync: actualizarEstado } = useActualizarEstadoFactura();
+  const [creandoGasto, setCreandoGasto] = useState(false);
 
   const proveedor = proveedorData?.proveedor;
 
@@ -146,6 +141,10 @@ export default function FacturaDetallePage() {
               </a>
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setCreandoGasto(true)}>
+            <Receipt className="mr-1.5 h-4 w-4" />
+            Registrar como gasto
+          </Button>
         </div>
       </div>
 
@@ -243,7 +242,7 @@ export default function FacturaDetallePage() {
                       {linea.materialId}
                     </Link>
                   ) : (
-                    <span className="text-xs text-muted-foreground">Sin mapear</span>
+                    <MapearMaterialPopover facturaId={id} lineaId={linea.id} />
                   )}
                 </TableCell>
               </TableRow>
@@ -305,6 +304,10 @@ export default function FacturaDetallePage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {creandoGasto && (
+        <CrearGastoDesdeFacturaDialog factura={factura} onClose={() => setCreandoGasto(false)} />
       )}
     </div>
   );

@@ -165,3 +165,36 @@ export function useActualizarEstadoFactura() {
     },
   });
 }
+
+/**
+ * Mapea manualmente una línea "sin resolver" a un material — fija material_id en
+ * la línea y guarda la equivalencia para que la próxima factura de este proveedor
+ * con el mismo código se resuelva sola.
+ */
+export function useMapearLineaFactura(facturaId: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      lineaId,
+      materialId,
+      unidadProveedorId,
+      factorConversion,
+    }: {
+      lineaId: string;
+      materialId: string;
+      unidadProveedorId: string;
+      factorConversion: number;
+    }) => {
+      const res = await fetch(`${BASE}/${facturaId}/lineas/${lineaId}/mapear`, {
+        method: 'PATCH',
+        headers: { ...authHeaders(token ?? ''), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialId, unidadProveedorId, factorConversion }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['facturas', facturaId] }),
+  });
+}

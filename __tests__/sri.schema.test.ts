@@ -6,6 +6,7 @@
 import {
   ProveedorSchema,
   TablaEquivalenciaSchema,
+  MapearLineaFacturaSchema,
   FacturaCompraSchema,
   ResolverEquivalenciasSchema,
   FacturasQuerySchema,
@@ -72,6 +73,28 @@ describe('TablaEquivalenciaSchema', () => {
 
   it('rechaza precioReferencia negativo', () => {
     expect(TablaEquivalenciaSchema.safeParse({ ...base, precioReferencia: -1 }).success).toBe(false);
+  });
+});
+
+describe('MapearLineaFacturaSchema', () => {
+  const base = { materialId: 'mat-1', unidadProveedorId: 'u-1', factorConversion: 2.44 };
+
+  it('acepta un mapeo válido', () => {
+    expect(MapearLineaFacturaSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('aplica default 1 a factorConversion si se omite', () => {
+    const { materialId, unidadProveedorId } = base;
+    const result = MapearLineaFacturaSchema.parse({ materialId, unidadProveedorId });
+    expect(result.factorConversion).toBe(1);
+  });
+
+  it('rechaza factorConversion <= 0', () => {
+    expect(MapearLineaFacturaSchema.safeParse({ ...base, factorConversion: 0 }).success).toBe(false);
+  });
+
+  it('rechaza materialId vacío', () => {
+    expect(MapearLineaFacturaSchema.safeParse({ ...base, materialId: '' }).success).toBe(false);
   });
 });
 
