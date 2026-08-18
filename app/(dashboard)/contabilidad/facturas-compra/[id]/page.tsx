@@ -6,9 +6,10 @@
  */
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Download } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Download, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -22,6 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { MapearMaterialPopover } from '@/components/contabilidad/MapearMaterialPopover';
+import { CrearGastoDesdeFacturaDialog } from '@/components/contabilidad/CrearGastoDesdeFacturaDialog';
 
 type EstadoFactura = 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
 
@@ -48,6 +50,7 @@ export default function FacturaDetallePage() {
   const { data: factura, isLoading, isError } = useFactura(id);
   const { data: proveedorData } = useProveedor(factura?.proveedorId ?? '');
   const { mutateAsync: actualizarEstado } = useActualizarEstadoFactura();
+  const [creandoGasto, setCreandoGasto] = useState(false);
 
   const proveedor = proveedorData?.proveedor;
 
@@ -138,6 +141,10 @@ export default function FacturaDetallePage() {
               </a>
             </Button>
           )}
+          <Button size="sm" variant="outline" onClick={() => setCreandoGasto(true)}>
+            <Receipt className="mr-1.5 h-4 w-4" />
+            Registrar como gasto
+          </Button>
         </div>
       </div>
 
@@ -297,6 +304,10 @@ export default function FacturaDetallePage() {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {creandoGasto && (
+        <CrearGastoDesdeFacturaDialog factura={factura} onClose={() => setCreandoGasto(false)} />
       )}
     </div>
   );
