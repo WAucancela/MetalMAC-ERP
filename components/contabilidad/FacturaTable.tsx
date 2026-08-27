@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useFacturas, useActualizarEstadoFactura } from '@/hooks/useFacturas';
 import { cn } from '@/lib/utils';
 import type { FacturaCompra } from '@/types/metalmac.types';
@@ -53,10 +55,16 @@ interface FacturaTableProps {
 
 export default function FacturaTable({ proveedorId }: FacturaTableProps) {
   const [estadoFilter, setEstadoFilter] = useState<FacturaCompra['estado'] | 'TODOS'>('TODOS');
+  const [desdeFilter, setDesdeFilter] = useState('');
+  const [hastaFilter, setHastaFilter] = useState('');
+
+  const hayFiltroFecha = !!desdeFilter || !!hastaFilter;
 
   const { data: facturas, isLoading } = useFacturas({
     proveedorId,
     estado: estadoFilter === 'TODOS' ? undefined : estadoFilter,
+    desde: desdeFilter || undefined,
+    hasta: hastaFilter || undefined,
   });
 
   const actualizarEstado = useActualizarEstadoFactura();
@@ -90,22 +98,53 @@ export default function FacturaTable({ proveedorId }: FacturaTableProps) {
   return (
     <div className="space-y-4">
       {/* Filtro */}
-      <div className="flex items-center gap-2">
-        <Select
-          value={estadoFilter}
-          onValueChange={(v) => setEstadoFilter(v as typeof estadoFilter)}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="TODOS">Todos</SelectItem>
-            <SelectItem value="PENDIENTE">Pendientes</SelectItem>
-            <SelectItem value="PROCESADA">Procesadas</SelectItem>
-            <SelectItem value="ANULADA">Anuladas</SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Estado</Label>
+          <Select
+            value={estadoFilter}
+            onValueChange={(v) => setEstadoFilter(v as typeof estadoFilter)}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="PENDIENTE">Pendientes</SelectItem>
+              <SelectItem value="PROCESADA">Procesadas</SelectItem>
+              <SelectItem value="ANULADA">Anuladas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Desde</Label>
+          <Input
+            type="date"
+            className="w-40"
+            value={desdeFilter}
+            onChange={(e) => setDesdeFilter(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Hasta</Label>
+          <Input
+            type="date"
+            className="w-40"
+            value={hastaFilter}
+            onChange={(e) => setHastaFilter(e.target.value)}
+          />
+        </div>
+        {hayFiltroFecha && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs"
+            onClick={() => { setDesdeFilter(''); setHastaFilter(''); }}
+          >
+            Limpiar fechas
+          </Button>
+        )}
+        <p className="text-sm text-muted-foreground pb-2">
           {facturas?.length ?? 0} facturas
         </p>
       </div>
