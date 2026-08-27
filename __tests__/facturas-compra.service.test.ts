@@ -27,6 +27,7 @@ import {
   FacturaNoEncontradaError,
   EstadoFacturaInvalidoError,
   FacturaYaAnuladaError,
+  MaterialNoPerteneceFacturaError,
 } from '../lib/services/facturas-compra.service';
 import { StockInsuficienteError, MaterialNoEncontradoError } from '../types/metalmac.types';
 
@@ -168,5 +169,17 @@ describe('registrarDevolucionProveedor', () => {
     });
 
     await expect(registrarDevolucionProveedor(input)).rejects.toThrow(StockInsuficienteError);
+  });
+
+  it('lanza MaterialNoPerteneceFacturaError si el material no está en ninguna línea de la factura', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: {
+        message: 'MATERIAL_NO_PERTENECE_FACTURA',
+        details: JSON.stringify({ facturaId: 'fc-1', materialId: 'mat-ajeno' }),
+      },
+    });
+
+    await expect(registrarDevolucionProveedor(input)).rejects.toThrow(MaterialNoPerteneceFacturaError);
   });
 });

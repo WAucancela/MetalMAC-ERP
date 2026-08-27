@@ -31,19 +31,41 @@ interface FormValues {
   cantidad: number;
 }
 
+interface MaterialDevolvible {
+  materialId: string;
+  descripcion: string;
+  /** Suma de cantidadConvertida (o cantidad) de todas las líneas de este material — una
+   *  factura puede tener el mismo material resuelto en más de una línea (precios o lotes
+   *  distintos), y acá interesa el total comprado, no el de una sola línea al azar. */
+  cantidadComprada: number;
+}
+
 export function RegistrarDevolucionDialog({ factura, onClose }: Props) {
   const registrar = useRegistrarDevolucion(factura.id);
   const [error, setError] = useState<string | null>(null);
 
-  // Solo tiene sentido devolver líneas que efectivamente entraron a inventario.
-  const lineasConMaterial = (factura.lineas ?? []).filter((l) => l.materialId);
+  // Solo tiene sentido devolver líneas que efectivamente entraron a inventario,
+  // agrupadas por material — ver el comentario de MaterialDevolvible arriba.
+  const materialesDevolvibles = Object.values(
+    (factura.lineas ?? []).reduce<Record<string, MaterialDevolvible>>((acc, l) => {
+      if (!l.materialId) return acc;
+      const cantidad = l.cantidadConvertida ?? l.cantidad;
+      const existente = acc[l.materialId];
+      if (existente) {
+        existente.cantidadComprada += cantidad;
+      } else {
+        acc[l.materialId] = { materialId: l.materialId, descripcion: l.descripcion, cantidadComprada: cantidad };
+      }
+      return acc;
+    }, {}),
+  );
 
   const { register, handleSubmit, control, watch, formState: { errors } } = useForm<FormValues>({
-    defaultValues: { materialId: lineasConMaterial[0]?.materialId ?? '', cantidad: 1 },
+    defaultValues: { materialId: materialesDevolvibles[0]?.materialId ?? '', cantidad: 1 },
   });
 
   const materialSeleccionado = watch('materialId');
-  const lineaSeleccionada = lineasConMaterial.find((l) => l.materialId === materialSeleccionado);
+  const materialElegido = materialesDevolvibles.find((m) => m.materialId === materialSeleccionado);
 
   const onSubmit = async (data: FormValues) => {
     setError(null);
@@ -56,7 +78,7 @@ export function RegistrarDevolucionDialog({ factura, onClose }: Props) {
     }
   };
 
-  if (lineasConMaterial.length === 0) {
+  if (materialesDevolvibles.length === 0) {
     return (
       <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent>
@@ -86,9 +108,9 @@ export function RegistrarDevolucionDialog({ factura, onClose }: Props) {
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger><SelectValue placeholder="Elegir material" /></SelectTrigger>
                   <SelectContent>
-                    {lineasConMaterial.map((l) => (
-                      <SelectItem key={l.materialId} value={l.materialId as string}>
-                        {l.descripcion} ({l.cantidadConvertida ?? l.cantidad} comprados)
+                    {materialesDevolvibles.map((m) => (
+                      <SelectItem key={m.materialId} value={m.materialId}>
+                        {m.descripcion} ({m.cantidadComprada} comprados)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -104,9 +126,9 @@ export function RegistrarDevolucionDialog({ factura, onClose }: Props) {
               {...register('cantidad', { valueAsNumber: true, required: true, min: 0.000001 })}
             />
             {errors.cantidad && <p className="text-xs text-red-500">Ingresá una cantidad mayor a 0</p>}
-            {lineaSeleccionada && (
+            {materialElegido && (
               <p className="text-xs text-muted-foreground">
-                Se compraron {lineaSeleccionada.cantidadConvertida ?? lineaSeleccionada.cantidad} en esta factura —
+                Se compraron {materialElegido.cantidadComprada} en esta factura —
                 no podés devolver más de lo que hoy hay disponible en stock.
               </p>
             )}

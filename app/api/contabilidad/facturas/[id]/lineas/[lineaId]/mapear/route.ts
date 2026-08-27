@@ -3,11 +3,14 @@
  *
  * Resuelve manualmente una línea de factura de compra que quedó "sin resolver"
  * (el código del proveedor no tenía equivalencia registrada al momento de subir
- * el XML). Dos efectos:
+ * el XML). Tres efectos:
  *   1. Fija material_id/cantidad_convertida en la línea.
  *   2. Guarda la equivalencia (tabla_equivalencias) para que la próxima factura
  *      de este proveedor con el mismo código se resuelva sola — mismo criterio
  *      que ya usa equivalencias.service.ts al resolver automáticamente.
+ *   3. Si la factura ya está PROCESADA (procesar_factura_compra ya corrió y se
+ *      saltó esta línea por no tener material_id todavía), genera ahora la
+ *      entrada de stock que quedó pendiente — ver entrar_stock_linea_mapeada.
  */
 
 import { NextResponse } from 'next/server';
@@ -78,6 +81,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         { onConflict: 'proveedor_id,codigo_proveedor' },
       );
     if (eqError) throw eqError;
+
+    // No-op si la factura sigue PENDIENTE (procesar_factura_compra se
+    // encargará), o si esta línea ya había generado su entrada antes.
+    const { error: stockError } = await supabaseAdmin.rpc('entrar_stock_linea_mapeada', {
+      p_linea_id: params.lineaId,
+      p_usuario_id: user.uid,
+    });
+    if (stockError) throw stockError;
 
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -42,6 +42,16 @@ export class FacturaYaAnuladaError extends Error {
   }
 }
 
+export class MaterialNoPerteneceFacturaError extends Error {
+  constructor(
+    public readonly facturaId: string,
+    public readonly materialId: string,
+  ) {
+    super(`El material ${materialId} no está en ninguna línea de la factura ${facturaId}`);
+    this.name = 'MaterialNoPerteneceFacturaError';
+  }
+}
+
 function parseDetail(error: { details?: string | null }): Record<string, unknown> {
   try {
     return error.details ? JSON.parse(error.details) : {};
@@ -65,6 +75,9 @@ function traducirError(error: { message: string; details?: string | null }, fact
   }
   if (error.message.startsWith('MATERIAL_NO_ENCONTRADO')) {
     return new MaterialNoEncontradoError(String(detail.materialId ?? ''));
+  }
+  if (error.message.startsWith('MATERIAL_NO_PERTENECE_FACTURA')) {
+    return new MaterialNoPerteneceFacturaError(facturaId, String(detail.materialId ?? ''));
   }
   if (
     error.message.startsWith('STOCK_INSUFICIENTE_ANULACION') ||

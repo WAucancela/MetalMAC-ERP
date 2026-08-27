@@ -1916,6 +1916,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      entrar_stock_linea_mapeada: {
+        Args: { p_linea_id: string; p_usuario_id: string }
+        Returns: undefined
+      }
       liberar_materiales_bom: {
         Args: { p_orden_id: string; p_usuario_id: string }
         Returns: undefined

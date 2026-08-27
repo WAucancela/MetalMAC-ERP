@@ -56,7 +56,7 @@ export default function FacturaDetallePage() {
 
   const proveedor = proveedorData?.proveedor;
 
-  const handleEstado = async (nuevoEstado: EstadoFactura) => {
+  const handleEstado = async (nuevoEstado: 'PROCESADA' | 'ANULADA') => {
     const label = ESTADO_BADGE[nuevoEstado].label.toLowerCase();
     const advertencia =
       nuevoEstado === 'ANULADA' && estado === 'PROCESADA'

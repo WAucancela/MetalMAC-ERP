@@ -175,7 +175,11 @@ export function useCrearFactura() {
   });
 }
 
-/** Actualiza el estado de una factura */
+/**
+ * Actualiza el estado de una factura. Solo PROCESADA | ANULADA — ver el
+ * comentario sobre PatchSchema en la API route: 'PENDIENTE' se sacó a
+ * propósito porque no hay transición real hacia atrás.
+ */
 export function useActualizarEstadoFactura() {
   const { token } = useAuth();
   const qc = useQueryClient();
@@ -186,7 +190,7 @@ export function useActualizarEstadoFactura() {
       estado,
     }: {
       id: string;
-      estado: 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
+      estado: 'PROCESADA' | 'ANULADA';
     }) => {
       const res = await fetch(`${BASE}/${id}`, {
         method: 'PATCH',
@@ -199,6 +203,9 @@ export function useActualizarEstadoFactura() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['facturas'] });
       qc.invalidateQueries({ queryKey: ['facturas', vars.id] });
+      // PROCESADA genera entradas de stock, ANULADA las revierte — igual que
+      // useOrdenes.ts invalida ['stock'] tras reservar/liberar/consumir.
+      qc.invalidateQueries({ queryKey: ['stock'] });
     },
   });
 }
@@ -222,7 +229,10 @@ export function useRegistrarDevolucion(facturaId: string) {
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
       return json as { movimientoId: string };
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['facturas', facturaId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['facturas', facturaId] });
+      qc.invalidateQueries({ queryKey: ['stock'] });
+    },
   });
 }
 

@@ -16,6 +16,7 @@ import {
   registrarDevolucionProveedor,
   FacturaNoEncontradaError,
   EstadoFacturaInvalidoError,
+  MaterialNoPerteneceFacturaError,
 } from '@/lib/services/facturas-compra.service';
 import { StockInsuficienteError, MaterialNoEncontradoError } from '@/types/metalmac.types';
 
@@ -53,6 +54,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json(
         { error: 'Solo se puede registrar una devolución sobre una factura procesada' },
         { status: 409 },
+      );
+    }
+    if (e instanceof MaterialNoPerteneceFacturaError) {
+      return NextResponse.json(
+        { error: 'Ese material no está en ninguna línea de esta factura' },
+        { status: 400 },
       );
     }
     if (e instanceof MaterialNoEncontradoError) {

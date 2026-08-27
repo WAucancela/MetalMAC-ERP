@@ -24,8 +24,13 @@ import { z } from 'zod';
 // Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
 export const dynamic = 'force-dynamic';
 
+// Sin 'PENDIENTE': nada legítimo en la UI vuelve una factura a Pendiente, y
+// permitirlo era una puerta trasera para saltarse procesarFacturaCompra /
+// anularFacturaCompra — una factura PROCESADA podía bajarse a PENDIENTE sin
+// revertir el stock que ya había entrado, y volver a PROCESADA duplicaba esa
+// entrada la segunda vez.
 const PatchSchema = z.object({
-  estado: z.enum(['PENDIENTE', 'PROCESADA', 'ANULADA']),
+  estado: z.enum(['PROCESADA', 'ANULADA']),
 });
 
 export async function GET(
@@ -68,19 +73,8 @@ export async function PATCH(
   try {
     if (parsed.data.estado === 'PROCESADA') {
       await procesarFacturaCompra(params.id, user.uid);
-    } else if (parsed.data.estado === 'ANULADA') {
-      await anularFacturaCompra(params.id, user.uid);
     } else {
-      // 'PENDIENTE': no hay transición real de vuelta a este estado desde la UI —
-      // se mantiene como update simple, sin efecto sobre stock, por compatibilidad.
-      const { data: updated, error } = await supabaseAdmin
-        .from('facturas_compra')
-        .update({ estado: 'PENDIENTE' })
-        .eq('id', params.id)
-        .select('id')
-        .maybeSingle();
-      if (error) throw error;
-      if (!updated) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 });
+      await anularFacturaCompra(params.id, user.uid);
     }
 
     return NextResponse.json({ ok: true });
