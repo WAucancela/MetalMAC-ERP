@@ -138,6 +138,17 @@ export const ResolverEquivalenciasSchema = z.object({
 export type ResolverEquivalenciasInput = z.infer<typeof ResolverEquivalenciasSchema>;
 
 // ─────────────────────────────────────────────
+// Devolución a proveedor (parcial, sobre una factura ya PROCESADA)
+// ─────────────────────────────────────────────
+
+export const RegistrarDevolucionSchema = z.object({
+  materialId: z.string().min(1),
+  cantidad: z.number().positive('La cantidad debe ser mayor a 0'),
+});
+
+export type RegistrarDevolucionInput = z.infer<typeof RegistrarDevolucionSchema>;
+
+// ─────────────────────────────────────────────
 // Query filters
 // ─────────────────────────────────────────────
 

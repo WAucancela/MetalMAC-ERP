@@ -1802,6 +1802,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      anular_factura_compra: {
+        Args: { p_factura_id: string; p_usuario_id: string }
+        Returns: undefined
+      }
       consumir_materiales_bom: {
         Args: { p_orden_id: string; p_usuario_id: string }
         Returns: undefined
@@ -1916,6 +1920,10 @@ export type Database = {
         Args: { p_orden_id: string; p_usuario_id: string }
         Returns: undefined
       }
+      procesar_factura_compra: {
+        Args: { p_factura_id: string; p_usuario_id: string }
+        Returns: undefined
+      }
       reemplazar_lineas_pendientes_pedido_woocommerce: {
         Args: { p_lineas: Json; p_pedido_id: string }
         Returns: undefined
@@ -1949,6 +1957,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      registrar_devolucion_proveedor: {
+        Args: {
+          p_cantidad: number
+          p_factura_id: string
+          p_material_id: string
+          p_usuario_id: string
+        }
+        Returns: string
       }
       registrar_movimiento_inventario: {
         Args: {
@@ -2066,6 +2083,7 @@ export type Database = {
         | "LIBERACION"
         | "MERMA"
         | "DEVOLUCION"
+        | "DEVOLUCION_PROVEEDOR"
       tipo_movimiento_bancario:
         | "DEPOSITO"
         | "RETIRO"
@@ -2265,6 +2283,7 @@ export const Constants = {
         "LIBERACION",
         "MERMA",
         "DEVOLUCION",
+        "DEVOLUCION_PROVEEDOR",
       ],
       tipo_movimiento_bancario: [
         "DEPOSITO",
