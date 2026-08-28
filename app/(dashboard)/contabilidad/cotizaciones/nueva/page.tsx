@@ -6,13 +6,14 @@
  */
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { addDays, format } from 'date-fns';
-import { ChevronLeft, Plus, Trash2, Loader2, Save } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Loader2, Save, Sparkles } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { CotizacionSchema, type CotizacionInput } from '@/lib/validations/cotizaciones.schema';
-import { useCrearCotizacion } from '@/hooks/useCotizaciones';
+import { useCrearCotizacion, useGenerarLineasIA } from '@/hooks/useCotizaciones';
 import { useProductos } from '@/hooks/useProductos';
 import { useMateriales } from '@/hooks/useInventario';
 import { useProyectos } from '@/hooks/useProyectos';
@@ -38,9 +39,11 @@ function hoyISO(): string {
 export default function NuevaCotizacionPage() {
   const router = useRouter();
   const crear = useCrearCotizacion();
+  const generarIA = useGenerarLineasIA();
   const { data: productos } = useProductos({ activo: true });
   const { data: materiales } = useMateriales({ activo: true });
   const { data: proyectos } = useProyectos();
+  const [textoClienteIA, setTextoClienteIA] = useState('');
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<CotizacionInput>({
     resolver: zodResolver(CotizacionSchema),
@@ -77,6 +80,38 @@ export default function NuevaCotizacionPage() {
     toast.error('Revisá los campos marcados en rojo');
   };
 
+  const handleGenerarIA = async () => {
+    if (!textoClienteIA.trim()) return;
+    try {
+      const resultado = await generarIA.mutateAsync(textoClienteIA);
+      resultado.lineas.forEach((l) =>
+        append({
+          descripcion: l.descripcion,
+          cantidad: l.cantidad,
+          precioUnitario: l.precioUnitario,
+          productoId: l.productoId,
+          materialId: null,
+        }),
+      );
+      if (resultado.notas && !watch('notas')) setValue('notas', resultado.notas);
+
+      if (resultado.lineas.length > 0) {
+        toast.success(`${resultado.lineas.length} línea(s) agregada(s) — revisalas antes de guardar`);
+      }
+      if (resultado.itemsSinMatch.length > 0) {
+        toast.warning(
+          `No encontré en el catálogo: ${resultado.itemsSinMatch.join('; ')} — cargalas como línea libre si corresponde.`,
+          { duration: 8000 },
+        );
+      }
+      if (resultado.lineas.length === 0 && resultado.itemsSinMatch.length === 0) {
+        toast.info('No encontré nada para agregar con ese texto.');
+      }
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al generar con IA');
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
@@ -87,6 +122,34 @@ export default function NuevaCotizacionPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+        {/* Generar con IA */}
+        <div className="rounded-lg border border-dashed p-4 space-y-2">
+          <Label className="flex items-center gap-1.5 text-sm font-semibold">
+            <Sparkles className="h-4 w-4" /> Generar líneas con IA (opcional)
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Pegá el pedido del cliente (WhatsApp, email, lo que sea) — busca coincidencias en tu
+            catálogo de productos y agrega las líneas solo. Siempre revisalas antes de guardar.
+          </p>
+          <Textarea
+            value={textoClienteIA}
+            onChange={(e) => setTextoClienteIA(e.target.value)}
+            rows={3}
+            placeholder="Ej: Necesito 50 dispensadores tipo gama y 20 tipo la reforma para entregar la próxima semana"
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={generarIA.isPending || !textoClienteIA.trim()}
+            onClick={handleGenerarIA}
+          >
+            {generarIA.isPending
+              ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Generando…</>
+              : <><Sparkles className="mr-1.5 h-3.5 w-3.5" /> Generar con IA</>}
+          </Button>
+        </div>
+
         {/* Cliente y vigencia */}
         <div className="rounded-lg border p-4 space-y-4">
           <h3 className="text-sm font-semibold">Cliente</h3>
