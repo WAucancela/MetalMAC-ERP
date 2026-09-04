@@ -93,7 +93,17 @@ export default function ConfiguracionSRIPage() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="ambiente">
-                    <SelectValue placeholder="Seleccionar ambiente..." />
+                    {/* Children explícitos, no solo `placeholder`: Radix deriva el texto
+                        mostrado del <SelectItem> que matchea el value, pero solo si ese
+                        item ya se montó en el DOM al menos una vez (ej. el usuario abrió
+                        el desplegable). Cuando el valor llega programáticamente via
+                        reset() — como acá, recién cargado el fetch — sin que se haya
+                        abierto nunca, el trigger se queda mostrando el placeholder aunque
+                        el valor interno ya sea el correcto. Children explícitos evitan
+                        depender de ese registro. */}
+                    <SelectValue placeholder="Seleccionar ambiente...">
+                      {field.value === 'PRUEBAS' ? 'Pruebas' : field.value === 'PRODUCCION' ? 'Producción' : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PRUEBAS">Pruebas</SelectItem>
@@ -148,7 +158,11 @@ export default function ConfiguracionSRIPage() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="emisorObligadoContabilidad">
-                    <SelectValue placeholder="Seleccionar..." />
+                    {/* Mismo motivo que en "Ambiente del SRI" arriba — children explícitos
+                        en vez de dejar que Radix derive el texto del <SelectItem>. */}
+                    <SelectValue placeholder="Seleccionar...">
+                      {field.value === 'SI' ? 'Sí' : field.value === 'NO' ? 'No' : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SI">Sí</SelectItem>
