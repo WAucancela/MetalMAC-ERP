@@ -11,6 +11,12 @@ export const ConfiguracionSRISchema = z.object({
   emisorDirMatriz: z.string().min(5).max(300),
   emisorDirEstablecimiento: z.string().min(5).max(300),
   emisorObligadoContabilidad: z.enum(['SI', 'NO']),
+  // Código de establecimiento y punto de emisión ya registrados ante el SRI
+  // (ej. "001", "100") — las facturas de venta nuevas se crean con esto por
+  // default, para que "Emitir electrónicamente" continúe la serie real en
+  // vez de arrancar una serie 001-001 paralela que nadie registró.
+  establecimiento: z.string().regex(/^\d{3}$/, 'Deben ser 3 dígitos, ej. 001'),
+  puntoEmision: z.string().regex(/^\d{3}$/, 'Deben ser 3 dígitos, ej. 001'),
   resendFromEmail: z.string().email('Email inválido'),
   // Vacío/omitido = no cambiar la API key que ya había guardada.
   resendApiKey: z.string().optional(),

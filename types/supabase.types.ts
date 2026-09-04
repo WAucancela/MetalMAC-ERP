@@ -366,7 +366,9 @@ export type Database = {
           emisor_obligado_contabilidad: string | null
           emisor_razon_social: string | null
           emisor_ruc: string | null
+          establecimiento: string
           id: number
+          punto_emision: string
           resend_api_key_cifrada: string | null
           resend_from_email: string | null
         }
@@ -380,7 +382,9 @@ export type Database = {
           emisor_obligado_contabilidad?: string | null
           emisor_razon_social?: string | null
           emisor_ruc?: string | null
+          establecimiento?: string
           id?: number
+          punto_emision?: string
           resend_api_key_cifrada?: string | null
           resend_from_email?: string | null
         }
@@ -394,7 +398,9 @@ export type Database = {
           emisor_obligado_contabilidad?: string | null
           emisor_razon_social?: string | null
           emisor_ruc?: string | null
+          establecimiento?: string
           id?: number
+          punto_emision?: string
           resend_api_key_cifrada?: string | null
           resend_from_email?: string | null
         }
