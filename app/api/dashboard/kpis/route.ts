@@ -58,11 +58,15 @@ export async function GET(request: Request) {
       supabaseAdmin.from('ordenes_produccion').select('id', { count: 'exact', head: true })
         .in('estado', ['BORRADOR', 'EN_PROCESO'])
         .lt('fecha_entrega', hoyStr),
+      // Sin `.limit()` a propósito — igual que las consultas de cuentas por
+      // pagar/cobrar de abajo: `montoPendiente` es una suma real, un límite
+      // acá la subestimaría en silencio en cuanto hubiera más PENDIENTE que
+      // el límite (el mismo bug que ya se corrigió en otras listas de esta
+      // app). `facturasUltimas5` igual solo toma las primeras 5 tras el sort.
       supabaseAdmin.from('facturas_compra')
         .select('id, numero_factura, total, proveedores(razon_social)')
         .eq('estado', 'PENDIENTE')
-        .order('fecha_emision', { ascending: false })
-        .limit(200),
+        .order('fecha_emision', { ascending: false }),
       supabaseAdmin.from('proyectos').select('id, codigo, nombre, cliente, presupuesto, costo_real').eq('estado', 'ACTIVO'),
       // ── Cuentas por pagar (saldo real, no solo estado del documento) ──────────
       supabaseAdmin.from('facturas_compra')
