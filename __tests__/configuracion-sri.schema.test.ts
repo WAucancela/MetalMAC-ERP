@@ -14,6 +14,8 @@ describe('ConfiguracionSRISchema', () => {
     emisorDirMatriz: 'Av. Principal 123, Guayaquil',
     emisorDirEstablecimiento: 'Av. Principal 123, Guayaquil',
     emisorObligadoContabilidad: 'SI' as const,
+    establecimiento: '001',
+    puntoEmision: '100',
     resendFromEmail: 'facturacion@metalmac.com',
   };
 
@@ -43,5 +45,13 @@ describe('ConfiguracionSRISchema', () => {
 
   it('rechaza un email remitente inválido', () => {
     expect(ConfiguracionSRISchema.safeParse({ ...base, resendFromEmail: 'no-es-un-email' }).success).toBe(false);
+  });
+
+  it('rechaza un establecimiento que no sean 3 dígitos', () => {
+    expect(ConfiguracionSRISchema.safeParse({ ...base, establecimiento: '1' }).success).toBe(false);
+  });
+
+  it('rechaza un punto de emisión que no sean 3 dígitos', () => {
+    expect(ConfiguracionSRISchema.safeParse({ ...base, puntoEmision: 'AB1' }).success).toBe(false);
   });
 });

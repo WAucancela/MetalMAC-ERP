@@ -15,6 +15,7 @@ import {
 } from '@/app/api/_helpers';
 import { FacturaVentaSchema, FacturasVentaQuerySchema } from '@/lib/validations/ventas.schema';
 import { mapFacturaVentaRow } from '@/lib/services/mappers';
+import { obtenerEstadoConfiguracionSRI } from '@/lib/services/configuracion-sri.service';
 
 // Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
 export const dynamic = 'force-dynamic';
@@ -97,6 +98,13 @@ export async function POST(request: Request) {
   const iva = Math.round(subtotalSinIva * IVA_ECUADOR * 100) / 100;
   const total = Math.round((subtotalSinIva + iva) * 100) / 100;
 
+  // Establecimiento/punto de emisión REALES registrados ante el SRI (ej. "001"/"100",
+  // ver Configuración → SRI). Si no se piden explícitos acá, la fila cae en el default
+  // de columna ('001'/'001' — ver 20260801000000_facturas_venta_fase1.sql), que es una
+  // serie que el SRI no tiene registrada. Si la config todavía no se llenó, se deja
+  // caer al default de columna en vez de romper la creación de la factura.
+  const configSri = await obtenerEstadoConfiguracionSRI();
+
   try {
     const { data: factura, error } = await supabaseAdmin
       .from('facturas_venta')
@@ -112,6 +120,8 @@ export async function POST(request: Request) {
         total,
         estado: 'BORRADOR',
         creado_por: user.uid,
+        ...(configSri.establecimiento ? { establecimiento: configSri.establecimiento } : {}),
+        ...(configSri.puntoEmision ? { punto_emision: configSri.puntoEmision } : {}),
       })
       .select('id')
       .single();
