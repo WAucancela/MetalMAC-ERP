@@ -9,7 +9,7 @@ import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
   Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
   FacturaVenta, LineaFacturaVenta, Operario, TipoOperacion, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
-  CuentaBancaria, MovimientoBancario, CajaMovimiento, Cotizacion, LineaCotizacion,
+  CuentaBancaria, MovimientoBancario, CajaMovimiento, Cotizacion, LineaCotizacion, Cliente, InteraccionCliente,
 } from '@/types/metalmac.types';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
@@ -17,6 +17,8 @@ type StockRow = Database['public']['Tables']['stock']['Row'];
 type MovimientoRow = Database['public']['Tables']['movimientos_inventario']['Row'];
 type ProductoRow = Database['public']['Tables']['productos']['Row'];
 type ProveedorRow = Database['public']['Tables']['proveedores']['Row'];
+type ClienteRow = Database['public']['Tables']['clientes']['Row'];
+type InteraccionRow = Database['public']['Tables']['clientes_interacciones']['Row'];
 type OrdenRow = Database['public']['Tables']['ordenes_produccion']['Row'];
 type OrdenMaterialReservadoRow = Database['public']['Tables']['orden_materiales_reservados']['Row'];
 type OperarioRow = Database['public']['Tables']['operarios']['Row'];
@@ -444,5 +446,34 @@ export function mapCotizacionRow(row: CotizacionRow, lineas: CotizacionLineaRow[
     vecesRecordado: row.veces_recordado,
     creadoEn: row.creado_en,
     creadoPor: row.creado_por,
+  };
+}
+
+export function mapClienteRow(row: ClienteRow): Cliente {
+  return {
+    id: row.id,
+    tipoIdentificacion: row.tipo_identificacion as Cliente['tipoIdentificacion'],
+    identificacion: row.identificacion,
+    razonSocial: row.razon_social,
+    nombreComercial: row.nombre_comercial,
+    email: row.email,
+    telefono: row.telefono,
+    whatsapp: row.whatsapp,
+    direccion: row.direccion,
+    ciudad: row.ciudad,
+    notas: row.notas,
+    activo: row.activo,
+    creadoEn: row.creado_en,
+  };
+}
+
+export function mapInteraccionRow(row: InteraccionRow): InteraccionCliente {
+  return {
+    id: row.id,
+    clienteId: row.cliente_id,
+    tipo: row.tipo as InteraccionCliente['tipo'],
+    descripcion: row.descripcion,
+    creadoPor: row.creado_por,
+    creadoEn: row.creado_en,
   };
 }

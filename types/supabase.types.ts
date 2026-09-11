@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -301,6 +296,92 @@ export type Database = {
         }
         Relationships: []
       }
+      clientes: {
+        Row: {
+          activo: boolean
+          ciudad: string
+          creado_en: string
+          creado_por: string | null
+          direccion: string
+          email: string
+          id: string
+          identificacion: string | null
+          nombre_comercial: string
+          notas: string
+          razon_social: string
+          telefono: string
+          tipo_identificacion: string | null
+          whatsapp: string
+        }
+        Insert: {
+          activo?: boolean
+          ciudad?: string
+          creado_en?: string
+          creado_por?: string | null
+          direccion?: string
+          email?: string
+          id?: string
+          identificacion?: string | null
+          nombre_comercial?: string
+          notas?: string
+          razon_social: string
+          telefono?: string
+          tipo_identificacion?: string | null
+          whatsapp?: string
+        }
+        Update: {
+          activo?: boolean
+          ciudad?: string
+          creado_en?: string
+          creado_por?: string | null
+          direccion?: string
+          email?: string
+          id?: string
+          identificacion?: string | null
+          nombre_comercial?: string
+          notas?: string
+          razon_social?: string
+          telefono?: string
+          tipo_identificacion?: string | null
+          whatsapp?: string
+        }
+        Relationships: []
+      }
+      clientes_interacciones: {
+        Row: {
+          cliente_id: string
+          creado_en: string
+          creado_por: string
+          descripcion: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          cliente_id: string
+          creado_en?: string
+          creado_por: string
+          descripcion: string
+          id?: string
+          tipo: string
+        }
+        Update: {
+          cliente_id?: string
+          creado_en?: string
+          creado_por?: string
+          descripcion?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_interacciones_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cobros_factura_venta: {
         Row: {
           creado_en: string
@@ -485,6 +566,7 @@ export type Database = {
       cotizaciones: {
         Row: {
           cliente_email: string
+          cliente_id: string | null
           cliente_nombre: string
           cliente_whatsapp: string
           creado_en: string
@@ -505,6 +587,7 @@ export type Database = {
         }
         Insert: {
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre: string
           cliente_whatsapp?: string
           creado_en?: string
@@ -525,6 +608,7 @@ export type Database = {
         }
         Update: {
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre?: string
           cliente_whatsapp?: string
           creado_en?: string
@@ -544,6 +628,13 @@ export type Database = {
           veces_recordado?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "cotizaciones_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cotizaciones_proyecto_id_fkey"
             columns: ["proyecto_id"]
@@ -780,6 +871,7 @@ export type Database = {
         Row: {
           clave_acceso: string | null
           cliente_email: string
+          cliente_id: string | null
           cliente_nombre: string
           cliente_ruc: string
           creado_en: string
@@ -805,6 +897,7 @@ export type Database = {
         Insert: {
           clave_acceso?: string | null
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre: string
           cliente_ruc: string
           creado_en?: string
@@ -830,6 +923,7 @@ export type Database = {
         Update: {
           clave_acceso?: string | null
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre?: string
           cliente_ruc?: string
           creado_en?: string
@@ -853,6 +947,13 @@ export type Database = {
           xml_firmado_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "facturas_venta_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "facturas_venta_proyecto_id_fkey"
             columns: ["proyecto_id"]
@@ -1417,6 +1518,7 @@ export type Database = {
       pedidos_woocommerce: {
         Row: {
           cliente_email: string
+          cliente_id: string | null
           cliente_nombre: string
           estado_revision: Database["public"]["Enums"]["estado_revision_pedido"]
           id: string
@@ -1433,6 +1535,7 @@ export type Database = {
         }
         Insert: {
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre?: string
           estado_revision?: Database["public"]["Enums"]["estado_revision_pedido"]
           id?: string
@@ -1449,6 +1552,7 @@ export type Database = {
         }
         Update: {
           cliente_email?: string
+          cliente_id?: string | null
           cliente_nombre?: string
           estado_revision?: Database["public"]["Enums"]["estado_revision_pedido"]
           id?: string
@@ -1463,7 +1567,15 @@ export type Database = {
           wc_order_id?: number
           wc_status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_woocommerce_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       perfiles: {
         Row: {
@@ -1613,6 +1725,7 @@ export type Database = {
           actualizado_en: string
           actualizado_por: string | null
           cliente: string
+          cliente_id: string | null
           codigo: string
           costo_estimado: number
           costo_real: number
@@ -1631,6 +1744,7 @@ export type Database = {
           actualizado_en?: string
           actualizado_por?: string | null
           cliente: string
+          cliente_id?: string | null
           codigo: string
           costo_estimado?: number
           costo_real?: number
@@ -1649,6 +1763,7 @@ export type Database = {
           actualizado_en?: string
           actualizado_por?: string | null
           cliente?: string
+          cliente_id?: string | null
           codigo?: string
           costo_estimado?: number
           costo_real?: number
@@ -1663,7 +1778,15 @@ export type Database = {
           presupuesto?: number
           responsable_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "proyectos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock: {
         Row: {
@@ -1901,6 +2024,7 @@ export type Database = {
           actualizado_en: string
           actualizado_por: string | null
           cliente: string
+          cliente_id: string | null
           codigo: string
           costo_estimado: number
           costo_real: number
@@ -2119,12 +2243,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2148,11 +2272,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2173,11 +2297,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2198,11 +2322,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2215,11 +2339,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2309,3 +2433,4 @@ export const Constants = {
     },
   },
 } as const
+
