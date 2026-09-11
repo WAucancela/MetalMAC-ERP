@@ -10,12 +10,18 @@
  *   ⚠️ NO es un servicio oficial documentado por el SRI (a diferencia de los
  *   WSDL de recepción/autorización que sí usamos en sri-soap.service.ts). No
  *   tiene API key, SLA, ni garantía de que la forma de la respuesta no
- *   cambie. Pudo NO verificarse en vivo desde este entorno de desarrollo —
- *   `sri.gob.ec` / `srienlinea.sri.gob.ec` no son alcanzables desde acá — así
- *   que los nombres de campo de abajo están tomados de la documentación
- *   comunitaria de este endpoint, no confirmados contra una respuesta real.
- *   Verificar en el primer uso real (`vercel logs` si falla) y ajustar el
- *   parseo si el SRI devuelve otra forma.
+ *   cambie.
+ *
+ *   URL y forma de respuesta verificadas en vivo el 2026-09-11 contra un RUC
+ *   real (0992419016001, OCEANSECURITY C. LTDA.):
+ *     GET .../ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc={ruc}
+ *     → 200 con un ARRAY: [{ razonSocial, estadoContribuyenteRuc,
+ *       tipoContribuyente: "SOCIEDAD" | "PERSONA NATURAL", ... }]
+ *     → RUC inexistente: cuerpo vacío / array vacío.
+ *   (La primera versión de este archivo usaba `obtenerPorNumeroRuc` singular
+ *   con `numeroRuc=` y esperaba un objeto en vez de un array — por eso nunca
+ *   encontraba nada. Si el SRI vuelve a cambiar la forma, este es el primer
+ *   lugar para revisar.)
  *
  * Por eso el diseño es defensivo a propósito: cualquier falla (timeout, 404,
  * forma de respuesta inesperada) devuelve `{ found: false }` en vez de un
@@ -27,7 +33,7 @@ import { getAuthenticatedUser } from '@/app/api/_helpers';
 export const dynamic = 'force-dynamic';
 
 const SRI_CONSULTA_URL =
-  'https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumeroRuc';
+  'https://srienlinea.sri.gob.ec/sri-catastro-sujeto-servicio-internet/rest/ConsolidadoContribuyente/obtenerPorNumerosRuc';
 
 const TIMEOUT_MS = 6000;
 
@@ -58,26 +64,25 @@ async function consultarSRI(ruc: string): Promise<ResultadoConsulta> {
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const res = await fetch(`${SRI_CONSULTA_URL}?numeroRuc=${ruc}`, {
+    const res = await fetch(`${SRI_CONSULTA_URL}?&ruc=${ruc}`, {
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
     if (!res.ok) return { found: false };
 
     const json = await res.json().catch(() => null);
-    if (!json) return { found: false };
+    // La respuesta es un array — [] (o cuerpo vacío) cuando el RUC no existe.
+    const registro = Array.isArray(json) ? json[0] : null;
+    if (!registro) return { found: false };
 
-    // Nombres de campo según la documentación comunitaria del endpoint — no
-    // confirmados en vivo, ver comentario de cabecera. `razonSocial` es el
-    // único campo que realmente necesitamos.
-    const razonSocial: unknown = json.razonSocial ?? json.nombre;
+    const razonSocial: unknown = registro.razonSocial;
     if (typeof razonSocial !== 'string' || !razonSocial.trim()) return { found: false };
 
     return {
       found: true,
       razonSocial: razonSocial.trim(),
-      tipoContribuyente: json.tipoContribuyente === 'PERSONA NATURAL' ? 'PERSONA_NATURAL' : 'SOCIEDAD',
-      estado: typeof json.estadoContribuyenteRuc === 'string' ? json.estadoContribuyenteRuc : undefined,
+      tipoContribuyente: registro.tipoContribuyente === 'PERSONA NATURAL' ? 'PERSONA_NATURAL' : 'SOCIEDAD',
+      estado: typeof registro.estadoContribuyenteRuc === 'string' ? registro.estadoContribuyenteRuc : undefined,
     };
   } catch (e) {
     // Timeout, DNS, endpoint caído o formato inesperado — nunca tirar el
