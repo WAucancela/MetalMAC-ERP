@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { MapearMaterialPopover } from '@/components/contabilidad/MapearMaterialPopover';
 import { CrearGastoDesdeFacturaDialog } from '@/components/contabilidad/CrearGastoDesdeFacturaDialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type EstadoFactura = 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
 
@@ -49,16 +50,18 @@ export default function FacturaDetallePage() {
 
   const { data: factura, isLoading, isError } = useFactura(id);
   const { data: proveedorData } = useProveedor(factura?.proveedorId ?? '');
-  const { mutateAsync: actualizarEstado } = useActualizarEstadoFactura();
+  const { mutateAsync: actualizarEstado, isPending: actualizandoEstado } = useActualizarEstadoFactura();
   const [creandoGasto, setCreandoGasto] = useState(false);
+  const [pendingEstado, setPendingEstado] = useState<EstadoFactura | null>(null);
 
   const proveedor = proveedorData?.proveedor;
 
-  const handleEstado = async (nuevoEstado: EstadoFactura) => {
-    const label = ESTADO_BADGE[nuevoEstado].label.toLowerCase();
-    if (!confirm(`¿Marcar esta factura como ${label}?`)) return;
+  const handleEstado = async () => {
+    if (!pendingEstado) return;
+    const label = ESTADO_BADGE[pendingEstado].label.toLowerCase();
     try {
-      await actualizarEstado({ id, estado: nuevoEstado });
+      await actualizarEstado({ id, estado: pendingEstado });
+      setPendingEstado(null);
       toast.success(`Factura marcada como ${label}`);
     } catch (err) {
       toast.error((err as Error).message);
@@ -118,7 +121,7 @@ export default function FacturaDetallePage() {
             <>
               <Button
                 size="sm"
-                onClick={() => handleEstado('PROCESADA')}
+                onClick={() => setPendingEstado('PROCESADA')}
               >
                 <CheckCircle className="mr-1.5 h-4 w-4" />
                 Marcar procesada
@@ -126,7 +129,7 @@ export default function FacturaDetallePage() {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => handleEstado('ANULADA')}
+                onClick={() => setPendingEstado('ANULADA')}
               >
                 <XCircle className="mr-1.5 h-4 w-4" />
                 Anular
@@ -309,6 +312,16 @@ export default function FacturaDetallePage() {
       {creandoGasto && (
         <CrearGastoDesdeFacturaDialog factura={factura} onClose={() => setCreandoGasto(false)} />
       )}
+
+      <ConfirmDialog
+        open={!!pendingEstado}
+        onOpenChange={(open) => { if (!open) setPendingEstado(null); }}
+        title={pendingEstado ? `¿Marcar esta factura como ${ESTADO_BADGE[pendingEstado].label.toLowerCase()}?` : ''}
+        confirmLabel={pendingEstado ? ESTADO_BADGE[pendingEstado].label : 'Confirmar'}
+        variant={pendingEstado === 'ANULADA' ? 'destructive' : 'default'}
+        loading={actualizandoEstado}
+        onConfirm={handleEstado}
+      />
     </div>
   );
 }

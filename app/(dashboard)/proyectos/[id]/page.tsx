@@ -11,6 +11,7 @@ import { ChevronLeft, Plus, Pencil, XCircle, ChevronDown, ChevronUp, Receipt } f
 import { Button }   from '@/components/ui/button';
 import { Badge }    from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResumenPresupuesto } from '@/components/proyectos/ResumenPresupuesto';
 import { GastoTable }        from '@/components/proyectos/GastoTable';
 import { GastoForm }         from '@/components/proyectos/GastoForm';
@@ -35,6 +36,7 @@ export default function ProyectoDetallePage() {
   const [showGastoForm, setShowGastoForm]     = useState(false);
   const [showFacturaForm, setShowFacturaForm] = useState(false);
   const [editMode, setEditMode]               = useState(false);
+  const [confirmandoCancelar, setConfirmandoCancelar] = useState(false);
 
   if (isLoading) {
     return (
@@ -53,9 +55,9 @@ export default function ProyectoDetallePage() {
   const fechaFin    = tsToDate(proyecto.fechaFin);
 
   async function handleCancelar() {
-    if (!confirm('¿Cancelar este proyecto?')) return;
     try {
       await eliminar.mutateAsync(id);
+      setConfirmandoCancelar(false);
       toast.success('Proyecto cancelado');
       router.push('/proyectos');
     } catch (e: any) {
@@ -107,7 +109,7 @@ export default function ProyectoDetallePage() {
               variant="ghost"
               size="sm"
               className="text-destructive"
-              onClick={handleCancelar}
+              onClick={() => setConfirmandoCancelar(true)}
             >
               <XCircle className="mr-1.5 h-3.5 w-3.5" /> Cancelar proyecto
             </Button>
@@ -204,6 +206,16 @@ export default function ProyectoDetallePage() {
 
         <GastoTable proyectoId={id} gastos={gastos} />
       </div>
+
+      <ConfirmDialog
+        open={confirmandoCancelar}
+        onOpenChange={setConfirmandoCancelar}
+        title="¿Cancelar este proyecto?"
+        confirmLabel="Cancelar proyecto"
+        variant="destructive"
+        loading={eliminar.isPending}
+        onConfirm={handleCancelar}
+      />
     </div>
   );
 }

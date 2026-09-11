@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { SubirCertificadoSchema, type SubirCertificadoInput } from '@/lib/validations/certificado.schema';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,21 +43,25 @@ export default function CertificadoFirmaPage() {
   const { data: estado, isLoading } = useCertificadoFirma();
   const subir = useSubirCertificadoFirma();
   const [file, setFile] = useState<File | null>(null);
+  const [pendingData, setPendingData] = useState<SubirCertificadoInput | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<SubirCertificadoInput>({
     resolver: zodResolver(SubirCertificadoSchema),
   });
 
-  const onSubmit = async (data: SubirCertificadoInput) => {
+  const onSubmit = (data: SubirCertificadoInput) => {
     if (!file) {
       toast.error('Seleccioná el archivo .p12');
       return;
     }
-    if (!confirm('¿Reemplazar el certificado de firma activo? Todas las emisiones futuras usarán este nuevo certificado.')) {
-      return;
-    }
+    setPendingData(data); // dispara el ConfirmDialog (ver más abajo)
+  };
+
+  const handleConfirmarSubir = async () => {
+    if (!pendingData || !file) return;
     try {
-      const resultado = await subir.mutateAsync({ file, password: data.password });
+      const resultado = await subir.mutateAsync({ file, password: pendingData.password });
+      setPendingData(null);
       toast.success(`Certificado cargado — vence el ${format(new Date(resultado.vigenciaHasta), 'dd MMM yyyy', { locale: es })}`);
       reset();
       setFile(null);
@@ -110,6 +115,17 @@ export default function CertificadoFirmaPage() {
             : 'Subir certificado'}
         </Button>
       </form>
+
+      <ConfirmDialog
+        open={!!pendingData}
+        onOpenChange={(open) => { if (!open) setPendingData(null); }}
+        title="¿Reemplazar el certificado de firma activo?"
+        description="Todas las emisiones futuras usarán este nuevo certificado."
+        confirmLabel="Reemplazar"
+        variant="destructive"
+        loading={subir.isPending}
+        onConfirm={handleConfirmarSubir}
+      />
     </div>
   );
 }

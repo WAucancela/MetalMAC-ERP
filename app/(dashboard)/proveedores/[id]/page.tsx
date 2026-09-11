@@ -22,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import FacturaTable from '@/components/contabilidad/FacturaTable';
 import ProveedorForm from '@/components/proveedores/ProveedorForm';
 import { useProveedor, useEliminarProveedor } from '@/hooks/useProveedores';
@@ -30,14 +31,15 @@ export default function ProveedorDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   const { data, isLoading } = useProveedor(id);
   const eliminar = useEliminarProveedor();
 
   const handleEliminar = async () => {
-    if (!confirm('¿Desactivar este proveedor?')) return;
     try {
       await eliminar.mutateAsync(id);
+      setConfirmandoEliminar(false);
       toast.success('Proveedor desactivado');
       router.push('/proveedores');
     } catch (e) {
@@ -91,7 +93,7 @@ export default function ProveedorDetallePage() {
             variant="ghost"
             size="sm"
             className="text-destructive hover:text-destructive"
-            onClick={handleEliminar}
+            onClick={() => setConfirmandoEliminar(true)}
           >
             <Trash2 className="mr-2 h-3.5 w-3.5" />
             Desactivar
@@ -155,6 +157,16 @@ export default function ProveedorDetallePage() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={confirmandoEliminar}
+        onOpenChange={setConfirmandoEliminar}
+        title="¿Desactivar este proveedor?"
+        confirmLabel="Desactivar"
+        variant="destructive"
+        loading={eliminar.isPending}
+        onConfirm={handleEliminar}
+      />
     </div>
   );
 }
