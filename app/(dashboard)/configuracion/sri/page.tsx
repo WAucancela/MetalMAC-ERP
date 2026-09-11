@@ -43,6 +43,8 @@ export default function ConfiguracionSRIPage() {
       emisorDirMatriz: estado.emisorDirMatriz ?? '',
       emisorDirEstablecimiento: estado.emisorDirEstablecimiento ?? '',
       emisorObligadoContabilidad: estado.emisorObligadoContabilidad ?? undefined,
+      establecimiento: estado.establecimiento ?? '',
+      puntoEmision: estado.puntoEmision ?? '',
       resendFromEmail: estado.resendFromEmail ?? '',
       resendApiKey: '',
     });
@@ -99,7 +101,17 @@ export default function ConfiguracionSRIPage() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="ambiente">
-                    <SelectValue placeholder="Seleccionar ambiente..." />
+                    {/* Children explícitos, no solo `placeholder`: Radix deriva el texto
+                        mostrado del <SelectItem> que matchea el value, pero solo si ese
+                        item ya se montó en el DOM al menos una vez (ej. el usuario abrió
+                        el desplegable). Cuando el valor llega programáticamente via
+                        reset() — como acá, recién cargado el fetch — sin que se haya
+                        abierto nunca, el trigger se queda mostrando el placeholder aunque
+                        el valor interno ya sea el correcto. Children explícitos evitan
+                        depender de ese registro. */}
+                    <SelectValue placeholder="Seleccionar ambiente...">
+                      {field.value === 'PRUEBAS' ? 'Pruebas' : field.value === 'PRODUCCION' ? 'Producción' : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="PRUEBAS">Pruebas</SelectItem>
@@ -154,7 +166,11 @@ export default function ConfiguracionSRIPage() {
               render={({ field }) => (
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger id="emisorObligadoContabilidad">
-                    <SelectValue placeholder="Seleccionar..." />
+                    {/* Mismo motivo que en "Ambiente del SRI" arriba — children explícitos
+                        en vez de dejar que Radix derive el texto del <SelectItem>. */}
+                    <SelectValue placeholder="Seleccionar...">
+                      {field.value === 'SI' ? 'Sí' : field.value === 'NO' ? 'No' : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="SI">Sí</SelectItem>
@@ -165,6 +181,24 @@ export default function ConfiguracionSRIPage() {
             />
             {errors.emisorObligadoContabilidad && <p className="text-xs text-red-500">{errors.emisorObligadoContabilidad.message}</p>}
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="establecimiento">Establecimiento</Label>
+              <Input id="establecimiento" className="font-mono" placeholder="001" {...register('establecimiento')} />
+              {errors.establecimiento && <p className="text-xs text-red-500">{errors.establecimiento.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="puntoEmision">Punto de emisión</Label>
+              <Input id="puntoEmision" className="font-mono" placeholder="001" {...register('puntoEmision')} />
+              {errors.puntoEmision && <p className="text-xs text-red-500">{errors.puntoEmision.message}</p>}
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Los códigos de 3 dígitos que ya tenés registrados ante el SRI (ej. 001-100). Las
+            facturas de venta nuevas arrancan con esto — si no coincide con lo real, "Emitir
+            electrónicamente" arranca una serie que el SRI no tiene registrada.
+          </p>
 
           <div className="space-y-1.5">
             <Label htmlFor="resendFromEmail">Email remitente (Resend)</Label>

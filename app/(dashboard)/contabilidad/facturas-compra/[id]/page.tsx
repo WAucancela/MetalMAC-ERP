@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, XCircle, Download, Receipt } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Download, Receipt, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { MapearMaterialPopover } from '@/components/contabilidad/MapearMaterialPopover';
 import { CrearGastoDesdeFacturaDialog } from '@/components/contabilidad/CrearGastoDesdeFacturaDialog';
+import { RegistrarDevolucionDialog } from '@/components/contabilidad/RegistrarDevolucionDialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 type EstadoFactura = 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
@@ -52,7 +53,8 @@ export default function FacturaDetallePage() {
   const { data: proveedorData } = useProveedor(factura?.proveedorId ?? '');
   const { mutateAsync: actualizarEstado, isPending: actualizandoEstado } = useActualizarEstadoFactura();
   const [creandoGasto, setCreandoGasto] = useState(false);
-  const [pendingEstado, setPendingEstado] = useState<EstadoFactura | null>(null);
+  const [devolviendo, setDevolviendo] = useState(false);
+  const [pendingEstado, setPendingEstado] = useState<'PROCESADA' | 'ANULADA' | null>(null);
 
   const proveedor = proveedorData?.proveedor;
 
@@ -92,6 +94,13 @@ export default function FacturaDetallePage() {
   const estado = factura.estado as EstadoFactura;
   const badgeInfo = ESTADO_BADGE[estado] ?? { label: estado, variant: 'secondary' as const };
 
+  // Anular una factura ya PROCESADA revierte el stock que había entrado con
+  // ella — se lo advertimos al usuario en el propio diálogo de confirmación.
+  const advertenciaAnular =
+    pendingEstado === 'ANULADA' && estado === 'PROCESADA'
+      ? 'Esto revierte el stock que había entrado con esta factura.'
+      : undefined;
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Encabezado */}
@@ -118,23 +127,29 @@ export default function FacturaDetallePage() {
         {/* Acciones de estado */}
         <div className="flex gap-2">
           {estado === 'PENDIENTE' && (
-            <>
-              <Button
-                size="sm"
-                onClick={() => setPendingEstado('PROCESADA')}
-              >
-                <CheckCircle className="mr-1.5 h-4 w-4" />
-                Marcar procesada
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => setPendingEstado('ANULADA')}
-              >
-                <XCircle className="mr-1.5 h-4 w-4" />
-                Anular
-              </Button>
-            </>
+            <Button
+              size="sm"
+              onClick={() => setPendingEstado('PROCESADA')}
+            >
+              <CheckCircle className="mr-1.5 h-4 w-4" />
+              Marcar procesada
+            </Button>
+          )}
+          {estado === 'PROCESADA' && (
+            <Button size="sm" variant="outline" onClick={() => setDevolviendo(true)}>
+              <Undo2 className="mr-1.5 h-4 w-4" />
+              Registrar devolución
+            </Button>
+          )}
+          {(estado === 'PENDIENTE' || estado === 'PROCESADA') && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setPendingEstado('ANULADA')}
+            >
+              <XCircle className="mr-1.5 h-4 w-4" />
+              Anular
+            </Button>
           )}
           {factura.xmlUrl && (
             <Button size="sm" variant="outline" asChild>
@@ -312,11 +327,15 @@ export default function FacturaDetallePage() {
       {creandoGasto && (
         <CrearGastoDesdeFacturaDialog factura={factura} onClose={() => setCreandoGasto(false)} />
       )}
+      {devolviendo && (
+        <RegistrarDevolucionDialog factura={factura} onClose={() => setDevolviendo(false)} />
+      )}
 
       <ConfirmDialog
         open={!!pendingEstado}
         onOpenChange={(open) => { if (!open) setPendingEstado(null); }}
         title={pendingEstado ? `¿Marcar esta factura como ${ESTADO_BADGE[pendingEstado].label.toLowerCase()}?` : ''}
+        description={advertenciaAnular}
         confirmLabel={pendingEstado ? ESTADO_BADGE[pendingEstado].label : 'Confirmar'}
         variant={pendingEstado === 'ANULADA' ? 'destructive' : 'default'}
         loading={actualizandoEstado}

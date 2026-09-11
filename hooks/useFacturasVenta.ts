@@ -34,22 +34,59 @@ export interface FacturasVentaFilter {
   estado?: 'BORRADOR' | 'EMITIDA' | 'ANULADA';
   desde?: string;
   hasta?: string;
+  /** Si se pasa, trae como mucho una página de este tamaño. Si se omite (caso
+   *  normal de esta lista), trae TODAS las facturas que matchean el filtro —
+   *  paginando el endpoint por dentro, no solo su primera página de 20. */
   limit?: number;
+}
+
+async function apiFetchPage<T>(
+  url: string,
+  token: string,
+): Promise<{ data: T[]; nextCursor: string | null }> {
+  const res = await fetch(url, { headers: authHeaders(token) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return { data: json.data as T[], nextCursor: json.nextCursor ?? null };
 }
 
 export function useFacturasVenta(filters: FacturasVentaFilter = {}) {
   const { token } = useAuth();
 
-  const params = new URLSearchParams();
-  if (filters.proyectoId) params.set('proyectoId', filters.proyectoId);
-  if (filters.estado)     params.set('estado', filters.estado);
-  if (filters.desde)      params.set('desde', filters.desde);
-  if (filters.hasta)      params.set('hasta', filters.hasta);
-  if (filters.limit)      params.set('limit', String(filters.limit));
+  const buildParams = (cursor?: string) => {
+    const params = new URLSearchParams();
+    if (filters.proyectoId) params.set('proyectoId', filters.proyectoId);
+    if (filters.estado)     params.set('estado', filters.estado);
+    if (filters.desde)      params.set('desde', filters.desde);
+    if (filters.hasta)      params.set('hasta', filters.hasta);
+    // El endpoint acepta como mucho 100 por página (ver FacturasVentaQuerySchema).
+    params.set('limit', String(Math.min(filters.limit ?? 100, 100)));
+    if (cursor) params.set('startAfter', cursor);
+    return params;
+  };
 
   return useQuery({
     queryKey: ['facturas-venta', filters],
-    queryFn: () => apiFetch<FacturaVenta[]>(`${BASE}?${params.toString()}`, token ?? ''),
+    queryFn: async () => {
+      // Con `limit` explícito, el caller quiere una sola página acotada —
+      // se respeta tal cual, sin paginar de más.
+      if (filters.limit) {
+        const { data } = await apiFetchPage<FacturaVenta>(`${BASE}?${buildParams()}`, token ?? '');
+        return data;
+      }
+
+      // Sin `limit`: se asume que quien pide la lista la quiere completa (así
+      // la usan hoy las stats de la página) — se recorre el cursor hasta
+      // agotarlo. Antes esto se cortaba en la primera página de 20 sin avisar.
+      const facturas: FacturaVenta[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await apiFetchPage<FacturaVenta>(`${BASE}?${buildParams(cursor)}`, token ?? '');
+        facturas.push(...page.data);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return facturas;
+    },
     enabled: !!token,
   });
 }

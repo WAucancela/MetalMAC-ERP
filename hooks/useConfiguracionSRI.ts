@@ -21,6 +21,8 @@ export interface EstadoConfiguracionSRI {
   emisorDirMatriz: string | null;
   emisorDirEstablecimiento: string | null;
   emisorObligadoContabilidad: 'SI' | 'NO' | null;
+  establecimiento: string | null;
+  puntoEmision: string | null;
   resendFromEmail: string | null;
   resendApiKeyConfigurada: boolean;
 }

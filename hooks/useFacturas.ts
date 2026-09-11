@@ -37,23 +37,60 @@ export interface FacturasFilter {
   estado?: 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
   desde?: string;
   hasta?: string;
+  /** Si se pasa, trae como mucho una página de este tamaño. Si se omite (caso normal
+   *  de esta lista), trae TODAS las facturas que matchean el filtro — paginando el
+   *  endpoint por dentro — no solo la primera página de 20. */
   limit?: number;
+}
+
+async function apiFetchPage<T>(
+  url: string,
+  token: string,
+): Promise<{ data: T[]; nextCursor: string | null }> {
+  const res = await fetch(url, { headers: authHeaders(token) });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+  return { data: json.data as T[], nextCursor: json.nextCursor ?? null };
 }
 
 export function useFacturas(filters: FacturasFilter = {}) {
   const { token } = useAuth();
 
-  const params = new URLSearchParams();
-  if (filters.proveedorId) params.set('proveedorId', filters.proveedorId);
-  if (filters.estado) params.set('estado', filters.estado);
-  if (filters.desde) params.set('desde', filters.desde);
-  if (filters.hasta) params.set('hasta', filters.hasta);
-  if (filters.limit) params.set('limit', String(filters.limit));
+  const buildParams = (cursor?: string) => {
+    const params = new URLSearchParams();
+    if (filters.proveedorId) params.set('proveedorId', filters.proveedorId);
+    if (filters.estado) params.set('estado', filters.estado);
+    if (filters.desde) params.set('desde', filters.desde);
+    if (filters.hasta) params.set('hasta', filters.hasta);
+    // El endpoint acepta como mucho 100 por página (ver FacturasQuerySchema) —
+    // de ahí el tope al armar cada página del loop de abajo.
+    params.set('limit', String(Math.min(filters.limit ?? 100, 100)));
+    if (cursor) params.set('startAfter', cursor);
+    return params;
+  };
 
   return useQuery({
     queryKey: ['facturas', filters],
-    queryFn: () =>
-      apiFetch<FacturaCompra[]>(`${BASE}?${params.toString()}`, token ?? ''),
+    queryFn: async () => {
+      // Con `limit` explícito, el caller quiere una sola página acotada (ej. un
+      // widget de "últimas facturas") — se respeta tal cual, sin paginar de más.
+      if (filters.limit) {
+        const { data } = await apiFetchPage<FacturaCompra>(`${BASE}?${buildParams()}`, token ?? '');
+        return data;
+      }
+
+      // Sin `limit`: se asume que quien pide la lista la quiere completa (así la
+      // usan hoy FacturaTable y la página de stats) — se recorre el cursor hasta
+      // agotarlo. Antes esto se cortaba en la primera página de 20 sin avisar.
+      const facturas: FacturaCompra[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await apiFetchPage<FacturaCompra>(`${BASE}?${buildParams(cursor)}`, token ?? '');
+        facturas.push(...page.data);
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor);
+      return facturas;
+    },
     enabled: !!token,
   });
 }
@@ -138,7 +175,11 @@ export function useCrearFactura() {
   });
 }
 
-/** Actualiza el estado de una factura */
+/**
+ * Actualiza el estado de una factura. Solo PROCESADA | ANULADA — ver el
+ * comentario sobre PatchSchema en la API route: 'PENDIENTE' se sacó a
+ * propósito porque no hay transición real hacia atrás.
+ */
 export function useActualizarEstadoFactura() {
   const { token } = useAuth();
   const qc = useQueryClient();
@@ -149,7 +190,7 @@ export function useActualizarEstadoFactura() {
       estado,
     }: {
       id: string;
-      estado: 'PENDIENTE' | 'PROCESADA' | 'ANULADA';
+      estado: 'PROCESADA' | 'ANULADA';
     }) => {
       const res = await fetch(`${BASE}/${id}`, {
         method: 'PATCH',
@@ -162,6 +203,35 @@ export function useActualizarEstadoFactura() {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['facturas'] });
       qc.invalidateQueries({ queryKey: ['facturas', vars.id] });
+      // PROCESADA genera entradas de stock, ANULADA las revierte — igual que
+      // useOrdenes.ts invalida ['stock'] tras reservar/liberar/consumir.
+      qc.invalidateQueries({ queryKey: ['stock'] });
+    },
+  });
+}
+
+/**
+ * Registra una devolución parcial a proveedor sobre una factura ya PROCESADA:
+ * resta stock del material indicado sin anular la factura completa.
+ */
+export function useRegistrarDevolucion(facturaId: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ materialId, cantidad }: { materialId: string; cantidad: number }) => {
+      const res = await fetch(`${BASE}/${facturaId}/devolucion`, {
+        method: 'POST',
+        headers: { ...authHeaders(token ?? ''), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ materialId, cantidad }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      return json as { movimientoId: string };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['facturas', facturaId] });
+      qc.invalidateQueries({ queryKey: ['stock'] });
     },
   });
 }

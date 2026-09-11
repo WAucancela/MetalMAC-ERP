@@ -33,6 +33,11 @@ export const CambiarEstadoCotizacionSchema = z.object({
 });
 export type CambiarEstadoCotizacionInput = z.infer<typeof CambiarEstadoCotizacionSchema>;
 
+export const GenerarLineasIASchema = z.object({
+  textoCliente: z.string().min(3, 'Pegá lo que pidió el cliente').max(4000),
+});
+export type GenerarLineasIAInput = z.infer<typeof GenerarLineasIASchema>;
+
 export const ConvertirCotizacionSchema = z.object({
   nombre: z.string().min(2).max(200),
   fechaInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato ISO: YYYY-MM-DD'),

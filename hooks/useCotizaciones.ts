@@ -85,6 +85,36 @@ export function useCrearCotizacion() {
   });
 }
 
+/**
+ * Sugiere líneas de cotización a partir de un pedido en lenguaje natural del
+ * cliente, matcheado contra el catálogo real (ver /api/cotizaciones/generar-ia).
+ * No crea nada — devuelve la sugerencia para prellenar el formulario.
+ */
+export interface LineaSugeridaIA {
+  productoId: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+}
+
+export interface GenerarLineasIAResult {
+  lineas: LineaSugeridaIA[];
+  itemsSinMatch: string[];
+  notas: string;
+}
+
+export function useGenerarLineasIA() {
+  const { token } = useAuth();
+  return useMutation({
+    mutationFn: (textoCliente: string) =>
+      apiFetch<GenerarLineasIAResult>(`${BASE}/generar-ia`, token ?? '', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ textoCliente }),
+      }),
+  });
+}
+
 export function useActualizarCotizacion(id: string) {
   const { token } = useAuth();
   const qc = useQueryClient();
