@@ -124,8 +124,17 @@ describe('MaterialesQuerySchema', () => {
     expect(result.activo).toBe(true);
   });
 
-  it('rechaza límite mayor a 100', () => {
-    expect(MaterialesQuerySchema.safeParse({ limite: '500' }).success).toBe(false);
+  it('acepta límite hasta 500 (uso de catálogo completo sin paginar)', () => {
+    expect(MaterialesQuerySchema.safeParse({ limite: '500' }).success).toBe(true);
+  });
+
+  it('rechaza límite mayor a 500', () => {
+    expect(MaterialesQuerySchema.safeParse({ limite: '501' }).success).toBe(false);
+  });
+
+  it('aplica default de página 1', () => {
+    const result = MaterialesQuerySchema.parse({});
+    expect(result.page).toBe(1);
   });
 });
 

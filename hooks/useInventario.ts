@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import type {
   Material, MovimientoInventario,
@@ -75,6 +75,14 @@ export function useMateriales(filters?: {
   tipo?: string;
   activo?: boolean;
   q?: string;
+  /**
+   * El backend pagina (default 50 por página). Los usos tipo "catálogo
+   * completo" (combobox de cotizaciones, selector de BOM, mapeo de
+   * equivalencias, alertas de stock) deben pasar un límite alto explícito
+   * para no perder materiales silenciosamente; la vista paginada de verdad
+   * es `useMaterialesPaginados`.
+   */
+  limite?: number;
 }) {
   const { token } = useAuth();
 
@@ -86,6 +94,7 @@ export function useMateriales(filters?: {
       if (filters?.tipo)             params.set('tipo', filters.tipo);
       if (filters?.activo !== undefined) params.set('activo', String(filters.activo));
       if (filters?.q)                params.set('q', filters.q);
+      if (filters?.limite !== undefined) params.set('limite', String(filters.limite));
 
       return apiFetch<MaterialConStock[]>(
         `/api/inventario/materiales?${params}`,
@@ -93,6 +102,54 @@ export function useMateriales(filters?: {
       );
     },
     staleTime: 30_000,
+  });
+}
+
+// ── Materiales paginados (para /inventario, que sí navega página a página) ──
+
+export interface MaterialesPaginados {
+  items: MaterialConStock[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useMaterialesPaginados(params: {
+  tipo?: string;
+  activo?: boolean;
+  q?: string;
+  page: number;
+  limite: number;
+}) {
+  const { token } = useAuth();
+  const sp = new URLSearchParams();
+  if (params.tipo)                 sp.set('tipo', params.tipo);
+  if (params.activo !== undefined) sp.set('activo', String(params.activo));
+  if (params.q)                    sp.set('q', params.q);
+  sp.set('page',   String(params.page));
+  sp.set('limite', String(params.limite));
+
+  return useQuery<MaterialesPaginados>({
+    queryKey: INVENTARIO_KEYS.materiales({ ...params, paginado: true }),
+    enabled:  !!token,
+    queryFn:  async () => {
+      const res = await fetch(`/api/inventario/materiales?${sp.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message ?? 'Error al cargar materiales');
+      const total = json.total ?? json.data.length;
+      return {
+        items: json.data as MaterialConStock[],
+        total,
+        page: params.page,
+        limit: params.limite,
+        totalPages: Math.max(1, Math.ceil(total / params.limite)),
+      };
+    },
+    staleTime: 30_000,
+    placeholderData: keepPreviousData, // evita el parpadeo al cambiar de página
   });
 }
 

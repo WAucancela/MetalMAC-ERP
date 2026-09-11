@@ -25,7 +25,7 @@ export default function ProductoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const { data: productoData, isLoading: loadingProducto } = useProducto(id);
   const { data: bomData, isLoading: loadingBOM } = useBOM(id);
-  const { data: materiales = [], isLoading: loadingMateriales } = useMateriales({ activo: true });
+  const { data: materiales = [], isLoading: loadingMateriales } = useMateriales({ activo: true, limite: 500 });
   const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: tiposOperacion = [], isLoading: loadingTiposOperacion } = useTiposOperacion({ activo: true });
   const actualizarProducto = useActualizarProducto(id);

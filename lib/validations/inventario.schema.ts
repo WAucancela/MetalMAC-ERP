@@ -111,6 +111,11 @@ export const MaterialesQuerySchema = PaginationSchema.extend({
   tipo:   TipoMaterialSchema.optional(),
   activo: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   q:      z.string().max(80).optional(), // búsqueda por nombre/código
+  // 500 cubre el uso de "catálogo completo" (selects/combobox) sin paginar;
+  // /inventario pagina de verdad con `page` + un `limite` menor. `cursor`
+  // (heredado de PaginationSchema) no se usa acá — ver /movimientos.
+  limite: z.coerce.number().int().min(1).max(500).default(50),
+  page:   z.coerce.number().int().min(1).default(1),
 });
 
 export const MovimientosQuerySchema = PaginationSchema.extend({

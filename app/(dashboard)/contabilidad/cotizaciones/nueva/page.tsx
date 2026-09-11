@@ -39,7 +39,7 @@ export default function NuevaCotizacionPage() {
   const router = useRouter();
   const crear = useCrearCotizacion();
   const { data: productos } = useProductos({ activo: true, limit: 500 });
-  const { data: materiales } = useMateriales({ activo: true });
+  const { data: materiales } = useMateriales({ activo: true, limite: 500 });
   const { data: proyectos } = useProyectos();
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<CotizacionInput>({
