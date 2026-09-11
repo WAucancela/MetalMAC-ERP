@@ -40,8 +40,8 @@ export default function NuevaCotizacionPage() {
   const router = useRouter();
   const crear = useCrearCotizacion();
   const generarIA = useGenerarLineasIA();
-  const { data: productos } = useProductos({ activo: true });
-  const { data: materiales } = useMateriales({ activo: true });
+  const { data: productos } = useProductos({ activo: true, limit: 500 });
+  const { data: materiales } = useMateriales({ activo: true, limite: 500 });
   const { data: proyectos } = useProyectos();
   const [textoClienteIA, setTextoClienteIA] = useState('');
 

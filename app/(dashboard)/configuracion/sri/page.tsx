@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import { ConfiguracionSRISchema, type ConfiguracionSRIInput } from '@/lib/validations/configuracion-sri.schema';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,19 +51,24 @@ export default function ConfiguracionSRIPage() {
   }, [estado, reset]);
 
   const ambienteElegido = watch('ambiente');
+  const [pendingData, setPendingData] = useState<ConfiguracionSRIInput | null>(null);
 
-  const onSubmit = async (data: ConfiguracionSRIInput) => {
-    if (data.ambiente === 'PRODUCCION') {
-      if (!confirm('¿Confirmás que querés usar el ambiente de PRODUCCIÓN del SRI? Las próximas emisiones enviarán comprobantes reales, no de prueba.')) {
-        return;
-      }
-    }
+  const doGuardar = async (data: ConfiguracionSRIInput) => {
     try {
       await guardar.mutateAsync(data);
+      setPendingData(null);
       toast.success('Configuración guardada');
     } catch (e: any) {
       toast.error(e.message ?? 'Error al guardar la configuración');
     }
+  };
+
+  const onSubmit = (data: ConfiguracionSRIInput) => {
+    if (data.ambiente === 'PRODUCCION') {
+      setPendingData(data); // dispara el ConfirmDialog (ver más abajo)
+      return;
+    }
+    doGuardar(data);
   };
 
   if (authLoading) return <Skeleton className="h-40 w-full max-w-lg" />;
@@ -217,6 +223,17 @@ export default function ConfiguracionSRIPage() {
           </Button>
         </form>
       )}
+
+      <ConfirmDialog
+        open={!!pendingData}
+        onOpenChange={(open) => { if (!open) setPendingData(null); }}
+        title="¿Confirmás que querés usar el ambiente de PRODUCCIÓN del SRI?"
+        description="Las próximas emisiones enviarán comprobantes reales, no de prueba."
+        confirmLabel="Usar producción"
+        variant="destructive"
+        loading={guardar.isPending}
+        onConfirm={() => { if (pendingData) return doGuardar(pendingData); }}
+      />
     </div>
   );
 }

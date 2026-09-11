@@ -33,7 +33,7 @@ export function MapearMaterialPopover({ facturaId, lineaId }: Props) {
   const [unidadProveedorId, setUnidadProveedorId] = useState<string>('');
   const [factorConversion, setFactorConversion] = useState<string>('1');
 
-  const { data: materiales } = useMateriales({ activo: true });
+  const { data: materiales } = useMateriales({ activo: true, limite: 500 });
   const { data: unidades } = useUnidades();
   const mapear = useMapearLineaFactura(facturaId);
 

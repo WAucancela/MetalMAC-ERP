@@ -3,6 +3,7 @@
  */
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, XCircle, Zap, Loader2 } from 'lucide-react';
@@ -16,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MarcarEmitidaForm } from '@/components/contabilidad/MarcarEmitidaForm';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import type { FacturaVenta } from '@/types/metalmac.types';
 
 type Estado = FacturaVenta['estado'];
@@ -37,11 +39,13 @@ export default function FacturaVentaDetallePage() {
   const { data: factura, isLoading, isError } = useFacturaVenta(id);
   const { mutateAsync: anular, isPending: anulando } = useAnularFacturaVenta();
   const { mutateAsync: emitir, isPending: emitiendo } = useEmitirFacturaVenta(id);
+  const [confirmandoAnular, setConfirmandoAnular] = useState(false);
+  const [confirmandoEmitir, setConfirmandoEmitir] = useState(false);
 
   const handleAnular = async () => {
-    if (!confirm('¿Anular esta factura de venta?')) return;
     try {
       await anular(id);
+      setConfirmandoAnular(false);
       toast.success('Factura anulada');
     } catch (err) {
       toast.error((err as Error).message);
@@ -49,9 +53,9 @@ export default function FacturaVentaDetallePage() {
   };
 
   const handleEmitir = async () => {
-    if (!confirm('¿Emitir esta factura electrónicamente ante el SRI? Esto genera y firma el XML, lo envía, y espera la autorización — no se puede deshacer.')) return;
     try {
       const resultado = await emitir();
+      setConfirmandoEmitir(false);
       if (resultado.sriEstado === 'EN_PROCESO') {
         toast.info(resultado.mensaje ?? 'El SRI todavía no autorizó el comprobante — volvé a intentar en unos minutos.');
         return;
@@ -117,7 +121,7 @@ export default function FacturaVentaDetallePage() {
         <div className="flex items-start gap-2">
           {factura.estado === 'BORRADOR' && (
             <>
-              <Button size="sm" onClick={handleEmitir} disabled={emitiendo}>
+              <Button size="sm" onClick={() => setConfirmandoEmitir(true)} disabled={emitiendo}>
                 {emitiendo
                   ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Emitiendo…</>
                   : <><Zap className="mr-1.5 h-4 w-4" /> Emitir electrónicamente</>}
@@ -126,7 +130,7 @@ export default function FacturaVentaDetallePage() {
             </>
           )}
           {factura.estado !== 'ANULADA' && (
-            <Button size="sm" variant="destructive" onClick={handleAnular} disabled={anulando}>
+            <Button size="sm" variant="destructive" onClick={() => setConfirmandoAnular(true)} disabled={anulando}>
               <XCircle className="mr-1.5 h-4 w-4" />
               Anular
             </Button>
@@ -246,6 +250,26 @@ export default function FacturaVentaDetallePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmandoAnular}
+        onOpenChange={setConfirmandoAnular}
+        title="¿Anular esta factura de venta?"
+        confirmLabel="Anular"
+        variant="destructive"
+        loading={anulando}
+        onConfirm={handleAnular}
+      />
+
+      <ConfirmDialog
+        open={confirmandoEmitir}
+        onOpenChange={setConfirmandoEmitir}
+        title="¿Emitir esta factura electrónicamente ante el SRI?"
+        description="Esto genera y firma el XML, lo envía, y espera la autorización — no se puede deshacer."
+        confirmLabel="Emitir"
+        loading={emitiendo}
+        onConfirm={handleEmitir}
+      />
     </div>
   );
 }

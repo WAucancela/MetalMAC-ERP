@@ -4,9 +4,9 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useMateriales } from '@/hooks/useInventario';
+import { useMateriales, useMaterialesPaginados } from '@/hooks/useInventario';
 import { StockBadge } from '@/components/inventario/StockBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,8 +18,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Search, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search, AlertTriangle } from 'lucide-react';
 import { ExportButton } from '@/components/ui/ExportButton';
+
+const PAGE_SIZE = 50;
 
 const TIPO_LABELS: Record<string, string> = {
   PLANCHA:    'Plancha',
@@ -32,14 +34,32 @@ const TIPO_LABELS: Record<string, string> = {
 export default function InventarioPage() {
   const [q,    setQ]    = useState('');
   const [tipo, setTipo] = useState<string>('');
+  const [page, setPage] = useState(1);
 
-  const { data: materiales, isLoading, isError } = useMateriales({
+  // Volver a la página 1 cuando cambia algún filtro — si no, se puede quedar
+  // "varado" en una página que ya no existe para el nuevo resultado.
+  useEffect(() => { setPage(1); }, [q, tipo]);
+
+  const { data, isLoading, isError } = useMaterialesPaginados({
     q:    q || undefined,
     tipo: tipo || undefined,
     activo: true,
+    page,
+    limite: PAGE_SIZE,
   });
 
-  const alertas = materiales?.filter(
+  const materiales  = data?.items ?? [];
+  const total       = data?.total ?? 0;
+  const totalPages  = data?.totalPages ?? 1;
+  const desde       = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const hasta       = Math.min(page * PAGE_SIZE, total);
+
+  // Las alertas de stock bajo son una señal global de inventario — se
+  // calculan sobre TODO el catálogo activo, no sobre la página/búsqueda
+  // actual de la tabla, para no esconder un material crítico solo porque
+  // quedó en otra página o el usuario está filtrando por otra cosa.
+  const { data: materialesParaAlertas } = useMateriales({ activo: true, limite: 500 });
+  const alertas = materialesParaAlertas?.filter(
     (m) => m.stock && m.stock.cantidadDisponible < m.stock.cantidadMinima,
   ) ?? [];
 
@@ -180,6 +200,36 @@ export default function InventarioPage() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Paginación */}
+      {!isLoading && !isError && total > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {desde}–{hasta} de {total} material{total === 1 ? '' : 'es'}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground px-1">
+              Página {page} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

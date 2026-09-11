@@ -4,27 +4,42 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
 
 import { Button }  from '@/components/ui/button';
 import { Input }   from '@/components/ui/input';
 import { Badge }   from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useProductos } from '@/hooks/useProductos';
+import { useProductosPaginados } from '@/hooks/useProductos';
+
+const PAGE_SIZE = 50;
 
 export default function ProductosPage() {
   const [q, setQ]      = useState('');
   const [tipo, setTipo] = useState<'PRODUCTO_TERMINADO' | 'SEMIELABORADO' | ''>('');
   const [estado, setEstado] = useState<'true' | 'false' | ''>('true');
+  const [page, setPage] = useState(1);
 
-  const { data: productos = [], isLoading } = useProductos({
+  // Volver a la página 1 cuando cambia algún filtro — si no, se puede quedar
+  // "varado" en una página que ya no existe para el nuevo resultado.
+  useEffect(() => { setPage(1); }, [q, tipo, estado]);
+
+  const { data, isLoading } = useProductosPaginados({
     tipo: tipo || undefined,
     activo: estado === '' ? undefined : estado === 'true',
     q: q || undefined,
+    page,
+    limit: PAGE_SIZE,
   });
+
+  const productos   = data?.items ?? [];
+  const total       = data?.total ?? 0;
+  const totalPages  = data?.totalPages ?? 1;
+  const desde       = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const hasta       = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div className="space-y-6">
@@ -133,6 +148,36 @@ export default function ProductosPage() {
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {/* Paginación */}
+      {!isLoading && total > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground">
+            Mostrando {desde}–{hasta} de {total} producto{total === 1 ? '' : 's'}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="mr-1 h-4 w-4" /> Anterior
+            </Button>
+            <span className="text-sm text-muted-foreground px-1">
+              Página {page} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Siguiente <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

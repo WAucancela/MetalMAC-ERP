@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ExportButton } from '@/components/ui/ExportButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import {
   useCotizacion, useEnviarCotizacion, useCambiarEstadoCotizacion, useEliminarCotizacion, useConvertirCotizacion,
@@ -109,6 +110,7 @@ export default function CotizacionDetallePage() {
   const cambiarEstado = useCambiarEstadoCotizacion(id);
   const eliminar = useEliminarCotizacion();
   const [convirtiendo, setConvirtiendo] = useState(false);
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   const handleEnviar = async () => {
     try {
@@ -129,9 +131,9 @@ export default function CotizacionDetallePage() {
   };
 
   const handleEliminar = async () => {
-    if (!confirm('¿Eliminar esta cotización? No se puede deshacer.')) return;
     try {
       await eliminar.mutateAsync(id);
+      setConfirmandoEliminar(false);
       toast.success('Cotización eliminada');
       router.push('/contabilidad/cotizaciones');
     } catch (e: any) {
@@ -175,7 +177,7 @@ export default function CotizacionDetallePage() {
               {enviar.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               Enviar por email
             </Button>
-            <Button variant="outline" className="text-destructive" onClick={handleEliminar} disabled={eliminar.isPending}>
+            <Button variant="outline" className="text-destructive" onClick={() => setConfirmandoEliminar(true)} disabled={eliminar.isPending}>
               <Trash2 className="mr-2 h-4 w-4" /> Eliminar
             </Button>
           </>
@@ -283,6 +285,17 @@ export default function CotizacionDetallePage() {
       {convirtiendo && (
         <ConvertirAProyectoDialog cotizacion={cotizacion} onClose={() => setConvirtiendo(false)} />
       )}
+
+      <ConfirmDialog
+        open={confirmandoEliminar}
+        onOpenChange={setConfirmandoEliminar}
+        title="¿Eliminar esta cotización?"
+        description="No se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="destructive"
+        loading={eliminar.isPending}
+        onConfirm={handleEliminar}
+      />
     </div>
   );
 }

@@ -36,6 +36,7 @@ export function OrdenForm() {
   const { data: productos = [], isLoading: loadingProductos } = useProductos({
     tipo: 'PRODUCTO_TERMINADO',
     activo: true,
+    limit: 500,
   });
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<CrearOrdenInput>({

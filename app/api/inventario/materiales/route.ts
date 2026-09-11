@@ -2,7 +2,7 @@
  * GET  /api/inventario/materiales   → lista paginada de materiales
  * POST /api/inventario/materiales   → crear material
  */
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   CreateMaterialSchema,
@@ -27,20 +27,22 @@ export async function GET(request: NextRequest) {
   );
   if (!parsed.success) return fromZodError(parsed.error);
 
-  const { tipo, activo, q, limite } = parsed.data;
+  const { tipo, activo, q, limite, page } = parsed.data;
 
   try {
     let query = supabaseAdmin
       .from('materiales')
-      .select('*, stock(*)')
+      .select('*, stock(*)', { count: 'exact' })
       .order('nombre');
 
     if (tipo) query = query.eq('tipo', tipo);
     if (activo !== undefined) query = query.eq('activo', activo);
     if (q) query = query.or(`nombre.ilike.%${q}%,codigo_interno.ilike.%${q}%`);
-    query = query.limit(limite);
+    const from = (page - 1) * limite;
+    const to   = from + limite - 1;
+    query = query.range(from, to);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
 
     const materiales = (data ?? []).map((row) => ({
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       stock: row.stock ? mapStockRow(row.stock) : null,
     }));
 
-    return ok(materiales);
+    return NextResponse.json({ ok: true, data: materiales, total: count ?? 0, page, limit: limite });
   } catch (err) {
     console.error('[GET /materiales]', err);
     return internalError();
