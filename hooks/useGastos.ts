@@ -16,21 +16,39 @@ export function useGastos(params?: {
   hasta?: string;
 }) {
   const { token } = useAuth();
-  const sp = new URLSearchParams();
-  if (params?.proyectoId)    sp.set('proyectoId',    params.proyectoId);
-  if (params?.centroCostoId) sp.set('centroCostoId', params.centroCostoId);
-  if (params?.categoria)     sp.set('categoria',      params.categoria);
-  if (params?.desde)         sp.set('desde',          params.desde);
-  if (params?.hasta)         sp.set('hasta',          params.hasta);
+
+  const buildParams = (cursor?: string) => {
+    const sp = new URLSearchParams();
+    if (params?.proyectoId)    sp.set('proyectoId',    params.proyectoId);
+    if (params?.centroCostoId) sp.set('centroCostoId', params.centroCostoId);
+    if (params?.categoria)     sp.set('categoria',      params.categoria);
+    if (params?.desde)         sp.set('desde',          params.desde);
+    if (params?.hasta)         sp.set('hasta',          params.hasta);
+    // El endpoint acepta como mucho 200 por página (ver GastosQuerySchema).
+    sp.set('limit', '200');
+    if (cursor) sp.set('startAfter', cursor);
+    return sp;
+  };
 
   return useQuery({
     queryKey: ['gastos', params],
     queryFn: async () => {
-      const res = await fetch(`/api/gastos?${sp.toString()}`, {
-        headers: authHeaders(token ?? ''),
-      });
-      if (!res.ok) throw new Error('Error al cargar gastos');
-      return (await res.json()).data;
+      // La única consumidora hoy (la lista general de Gastos) quiere el total
+      // real para sumarlo — antes se cortaba en la primera página de 100 sin
+      // avisar, y el "Total" mostrado quedaba subestimado en cuanto hubiera
+      // más de 100 gastos. Se recorre el cursor hasta agotarlo.
+      const gastos: unknown[] = [];
+      let cursor: string | undefined;
+      do {
+        const res = await fetch(`/api/gastos?${buildParams(cursor).toString()}`, {
+          headers: authHeaders(token ?? ''),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Error al cargar gastos');
+        gastos.push(...(json.data ?? []));
+        cursor = json.nextCursor ?? undefined;
+      } while (cursor);
+      return gastos;
     },
     // Antes exigía proyectoId (uso embebido en detalle de proyecto); ahora
     // también se usa para la lista general de gastos sin proyecto.

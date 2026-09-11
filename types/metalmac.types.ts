@@ -28,7 +28,8 @@ export type TipoMovimiento =
   | 'RESERVA'
   | 'LIBERACION'
   | 'MERMA'
-  | 'DEVOLUCION';
+  | 'DEVOLUCION'
+  | 'DEVOLUCION_PROVEEDOR';
 
 export type TipoDocumento =
   | 'FACTURA_COMPRA'

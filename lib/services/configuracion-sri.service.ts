@@ -20,6 +20,8 @@ export interface ConfiguracionSRIInput {
   emisorDirMatriz: string;
   emisorDirEstablecimiento: string;
   emisorObligadoContabilidad: 'SI' | 'NO';
+  establecimiento: string;
+  puntoEmision: string;
   resendFromEmail: string;
   /** Vacío/omitido = no cambiar la que ya había guardada. */
   resendApiKey?: string;
@@ -28,6 +30,11 @@ export interface ConfiguracionSRIInput {
 export interface ConfiguracionSRICompleta {
   ambiente: SriAmbiente;
   emisor: EmisorConfig;
+  /** Código de establecimiento/punto de emisión registrados ante el SRI (ej. "001"/"100") —
+   *  ver 20260904000000_establecimiento_punto_emision_sri.sql para por qué esto no puede
+   *  seguir dependiendo del default de columna de facturas_venta. */
+  establecimiento: string;
+  puntoEmision: string;
   resendApiKey: string | null;
   resendFromEmail: string;
 }
@@ -40,6 +47,8 @@ export interface EstadoConfiguracionSRI {
   emisorDirMatriz: string | null;
   emisorDirEstablecimiento: string | null;
   emisorObligadoContabilidad: 'SI' | 'NO' | null;
+  establecimiento: string | null;
+  puntoEmision: string | null;
   resendFromEmail: string | null;
   resendApiKeyConfigurada: boolean;
 }
@@ -70,6 +79,8 @@ export async function leerConfiguracionSRI(): Promise<ConfiguracionSRICompleta> 
   faltante(fila?.emisor_dir_matriz, 'la dirección de la matriz');
   faltante(fila?.emisor_dir_establecimiento, 'la dirección del establecimiento');
   faltante(fila?.emisor_obligado_contabilidad, 'si el emisor está obligado a llevar contabilidad');
+  faltante(fila?.establecimiento, 'el código de establecimiento');
+  faltante(fila?.punto_emision, 'el código de punto de emisión');
   faltante(fila?.resend_from_email, 'el email remitente de Resend');
 
   return {
@@ -82,6 +93,8 @@ export async function leerConfiguracionSRI(): Promise<ConfiguracionSRICompleta> 
       dirEstablecimiento: fila!.emisor_dir_establecimiento!,
       obligadoContabilidad: fila!.emisor_obligado_contabilidad as 'SI' | 'NO',
     },
+    establecimiento: fila!.establecimiento,
+    puntoEmision: fila!.punto_emision,
     resendApiKey: fila!.resend_api_key_cifrada
       ? desencriptar(fila!.resend_api_key_cifrada, leerClaveCifrado())
       : null,
@@ -106,6 +119,8 @@ export async function obtenerEstadoConfiguracionSRI(): Promise<EstadoConfiguraci
     emisorDirMatriz: fila?.emisor_dir_matriz ?? null,
     emisorDirEstablecimiento: fila?.emisor_dir_establecimiento ?? null,
     emisorObligadoContabilidad: (fila?.emisor_obligado_contabilidad as 'SI' | 'NO' | null) ?? null,
+    establecimiento: fila?.establecimiento ?? null,
+    puntoEmision: fila?.punto_emision ?? null,
     resendFromEmail: fila?.resend_from_email ?? null,
     resendApiKeyConfigurada: !!fila?.resend_api_key_cifrada,
   };
@@ -126,6 +141,8 @@ export async function guardarConfiguracionSRI(input: ConfiguracionSRIInput, usua
     emisor_dir_matriz: input.emisorDirMatriz,
     emisor_dir_establecimiento: input.emisorDirEstablecimiento,
     emisor_obligado_contabilidad: input.emisorObligadoContabilidad,
+    establecimiento: input.establecimiento,
+    punto_emision: input.puntoEmision,
     resend_from_email: input.resendFromEmail,
     actualizado_en: new Date().toISOString(),
     actualizado_por: usuarioId,

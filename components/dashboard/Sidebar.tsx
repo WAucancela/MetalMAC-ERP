@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import {
   Package, Truck, Factory, FolderOpen, ShoppingCart, Calculator,
-  LayoutDashboard, ChevronRight, Boxes, LogOut, Settings, Sun, Moon, Users,
+  LayoutDashboard, ChevronRight, Boxes, LogOut, Settings, Sun, Moon, Users, FileSpreadsheet,
 } from 'lucide-react';
 import { useAlertasStockBajo } from '@/hooks/useStock';
 import { usePedidosWooCommerce } from '@/hooks/usePedidosWooCommerce';
@@ -33,6 +33,10 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/proveedores',                  label: 'Proveedores',      icon: Truck },
   { href: '/contabilidad',                 label: 'Contabilidad',     icon: Calculator, roles: ['GERENTE', 'CONTABILIDAD'] },
   { href: '/proyectos',                    label: 'Proyectos',        icon: FolderOpen },
+  // Sin `roles`: la API de reportes (app/api/reportes/*) tampoco restringe por
+  // rol — mismo criterio que el resto de este array, mantener sidebar y API
+  // en sync.
+  { href: '/reportes',                     label: 'Reportes',         icon: FileSpreadsheet },
   { href: '/configuracion',                label: 'Configuración',    icon: Settings, roles: ['GERENTE'] },
 ];
 

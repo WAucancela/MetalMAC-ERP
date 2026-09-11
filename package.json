@@ -13,6 +13,7 @@
     "migrar-clientes": "npx tsx scripts/migrar-clientes.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "@hookform/resolvers": "^3.6.0",
     "@peculiar/webcrypto": "^1.7.1",
     "@radix-ui/react-dialog": "^1.1.1",

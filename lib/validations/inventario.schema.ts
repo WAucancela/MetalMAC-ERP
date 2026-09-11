@@ -15,7 +15,7 @@ export const TipoMaterialSchema = z.enum([
 
 export const TipoMovimientoSchema = z.enum([
   'ENTRADA', 'SALIDA', 'AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO',
-  'RESERVA', 'LIBERACION', 'MERMA', 'DEVOLUCION',
+  'RESERVA', 'LIBERACION', 'MERMA', 'DEVOLUCION', 'DEVOLUCION_PROVEEDOR',
 ]);
 
 export const TipoDocumentoSchema = z.enum([

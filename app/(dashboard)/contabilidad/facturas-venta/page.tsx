@@ -12,6 +12,9 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 import { Badge }    from '@/components/ui/badge';
+import { Button }   from '@/components/ui/button';
+import { Input }    from '@/components/ui/input';
+import { Label }    from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useFacturasVenta } from '@/hooks/useFacturasVenta';
@@ -38,7 +41,15 @@ function formatUSD(n: number): string {
 
 export default function FacturasVentaPage() {
   const [estado, setEstado] = useState<Estado | ''>('');
-  const { data: facturas = [], isLoading } = useFacturasVenta(estado ? { estado } : {});
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const hayFiltroFecha = !!desde || !!hasta;
+
+  const { data: facturas = [], isLoading } = useFacturasVenta({
+    ...(estado ? { estado } : {}),
+    ...(desde ? { desde } : {}),
+    ...(hasta ? { hasta } : {}),
+  });
 
   const pendientes = facturas.filter((f) => f.estado === 'BORRADOR').length;
   const totalEmitido = facturas.filter((f) => f.estado === 'EMITIDA').reduce((acc, f) => acc + f.total, 0);
@@ -83,6 +94,27 @@ export default function FacturasVentaPage() {
             {e.label}
           </button>
         ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Desde</Label>
+          <Input type="date" className="w-40" value={desde} onChange={(e) => setDesde(e.target.value)} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Hasta</Label>
+          <Input type="date" className="w-40" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+        </div>
+        {hayFiltroFecha && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs"
+            onClick={() => { setDesde(''); setHasta(''); }}
+          >
+            Limpiar fechas
+          </Button>
+        )}
       </div>
 
       {/* Tabla */}
