@@ -9,7 +9,8 @@
     "test": "jest --no-coverage",
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx scripts/seed.ts",
-    "create-admin": "npx tsx scripts/create-admin.ts"
+    "create-admin": "npx tsx scripts/create-admin.ts",
+    "migrar-clientes": "npx tsx scripts/migrar-clientes.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.6.0",

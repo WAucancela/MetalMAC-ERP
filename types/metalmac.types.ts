@@ -339,6 +339,35 @@ export interface Cotizacion {
 }
 
 // ─────────────────────────────────────────────
+// Clientes (CRM liviano)
+// ─────────────────────────────────────────────
+
+export interface Cliente {
+  id: string;
+  tipoIdentificacion: 'RUC' | 'CEDULA' | 'PASAPORTE' | null;
+  identificacion: string | null;
+  razonSocial: string;
+  nombreComercial: string;
+  email: string;
+  telefono: string;
+  whatsapp: string;
+  direccion: string;
+  ciudad: string;
+  notas: string;
+  activo: boolean;
+  creadoEn: string;
+}
+
+export interface InteraccionCliente {
+  id: string;
+  clienteId: string;
+  tipo: 'LLAMADA' | 'EMAIL' | 'REUNION' | 'NOTA';
+  descripcion: string;
+  creadoPor: string;
+  creadoEn: string;
+}
+
+// ─────────────────────────────────────────────
 // Contabilidad: Facturas de Venta
 // ─────────────────────────────────────────────
 
