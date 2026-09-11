@@ -132,7 +132,10 @@ export const ProductosQuerySchema = z.object({
   tipo: z.enum(['PRODUCTO_TERMINADO', 'SEMIELABORADO']).optional(),
   activo: z.enum(['true', 'false']).transform((v) => v === 'true').optional(),
   q: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
+  // 500 cubre el uso de "catálogo completo" (selects/combobox) sin paginar;
+  // la página /productos pagina de verdad con `page` + un `limit` menor.
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  page: z.coerce.number().int().min(1).default(1),
 });
 
 export type ProductosQuery = z.infer<typeof ProductosQuerySchema>;

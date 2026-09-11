@@ -38,7 +38,7 @@ function hoyISO(): string {
 export default function NuevaCotizacionPage() {
   const router = useRouter();
   const crear = useCrearCotizacion();
-  const { data: productos } = useProductos({ activo: true });
+  const { data: productos } = useProductos({ activo: true, limit: 500 });
   const { data: materiales } = useMateriales({ activo: true });
   const { data: proyectos } = useProyectos();
 

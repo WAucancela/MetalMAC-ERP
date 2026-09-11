@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import type { ProductoInput } from '@/lib/validations/produccion.schema';
 
@@ -30,12 +30,20 @@ export function useProductos(params?: {
   tipo?: 'PRODUCTO_TERMINADO' | 'SEMIELABORADO';
   activo?: boolean;
   q?: string;
+  /**
+   * El backend pagina (default 50 por página). Los usos tipo "catálogo
+   * completo" (selects/combobox de cotizaciones, producción, etc.) deben
+   * pasar un límite alto explícito para no perder productos silenciosamente;
+   * la vista paginada de verdad es `useProductosPaginados`.
+   */
+  limit?: number;
 }) {
   const { token } = useAuth();
   const sp = new URLSearchParams();
   if (params?.tipo   !== undefined) sp.set('tipo',   params.tipo);
   if (params?.activo !== undefined) sp.set('activo', String(params.activo));
   if (params?.q)                    sp.set('q',      params.q);
+  if (params?.limit  !== undefined) sp.set('limit',  String(params.limit));
 
   return useQuery<ProductoResumen[]>({
     queryKey: ['productos', params],
@@ -49,6 +57,54 @@ export function useProductos(params?: {
     },
     enabled: !!token,
     staleTime: 5 * 60_000,
+  });
+}
+
+// ── Productos paginados (para /productos, que sí navega página a página) ────
+
+export interface ProductosPaginados {
+  items: ProductoResumen[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export function useProductosPaginados(params: {
+  tipo?: 'PRODUCTO_TERMINADO' | 'SEMIELABORADO';
+  activo?: boolean;
+  q?: string;
+  page: number;
+  limit: number;
+}) {
+  const { token } = useAuth();
+  const sp = new URLSearchParams();
+  if (params.tipo   !== undefined) sp.set('tipo',   params.tipo);
+  if (params.activo !== undefined) sp.set('activo', String(params.activo));
+  if (params.q)                    sp.set('q',      params.q);
+  sp.set('page',  String(params.page));
+  sp.set('limit', String(params.limit));
+
+  return useQuery<ProductosPaginados>({
+    queryKey: ['productos', 'paginado', params],
+    queryFn: async () => {
+      const res = await fetch(`/api/productos?${sp.toString()}`, {
+        headers: authHeaders(token ?? ''),
+      });
+      if (!res.ok) throw new Error('Error al cargar productos');
+      const json = await res.json();
+      const total = json.total ?? json.data.length;
+      return {
+        items: json.data as ProductoResumen[],
+        total,
+        page: params.page,
+        limit: params.limit,
+        totalPages: Math.max(1, Math.ceil(total / params.limit)),
+      };
+    },
+    enabled: !!token,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData, // evita el parpadeo al cambiar de página
   });
 }
 

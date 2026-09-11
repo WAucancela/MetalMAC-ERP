@@ -15,19 +15,27 @@ export async function GET(request: Request) {
   const qp = ProductosQuerySchema.safeParse(Object.fromEntries(searchParams));
   if (!qp.success) return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 });
 
-  const { tipo, activo, q: term, limit: pageLimit } = qp.data;
+  const { tipo, activo, q: term, limit: pageLimit, page } = qp.data;
 
   try {
-    let query = supabaseAdmin.from('productos').select('*').order('nombre');
+    let query = supabaseAdmin.from('productos').select('*', { count: 'exact' }).order('nombre');
     if (tipo)                 query = query.eq('tipo', tipo);
     if (activo !== undefined) query = query.eq('activo', activo);
     if (term)                 query = query.or(`nombre.ilike.%${term}%,codigo.ilike.%${term}%`);
-    query = query.limit(pageLimit);
+    const from = (page - 1) * pageLimit;
+    const to   = from + pageLimit - 1;
+    query = query.range(from, to);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
 
-    return NextResponse.json({ ok: true, data: (data ?? []).map(mapProductoRow) });
+    return NextResponse.json({
+      ok: true,
+      data: (data ?? []).map(mapProductoRow),
+      total: count ?? 0,
+      page,
+      limit: pageLimit,
+    });
   } catch (e) {
     console.error('[GET /api/productos]', e);
     return NextResponse.json({ error: 'Error al obtener productos' }, { status: 500 });
