@@ -18,25 +18,31 @@ import { FacturaVentaSchema, type FacturaVentaInput } from '@/lib/validations/ve
 import { useCrearFacturaVenta } from '@/hooks/useFacturasVenta';
 
 interface Props {
-  proyectoId: string;
+  proyectoId?: string | null;
   clienteNombreSugerido?: string;
+  clienteEmailSugerido?: string;
+  lineasSugeridas?: { descripcion: string; cantidad: number; precioUnitario: number }[];
   onSuccess?: (id: string) => void;
 }
 
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 
-export function GenerarFacturaVentaForm({ proyectoId, clienteNombreSugerido, onSuccess }: Props) {
+export function GenerarFacturaVentaForm({
+  proyectoId, clienteNombreSugerido, clienteEmailSugerido, lineasSugeridas, onSuccess,
+}: Props) {
   const crear = useCrearFacturaVenta();
 
   const { register, control, handleSubmit, formState: { errors } } = useForm<FacturaVentaInput>({
     resolver: zodResolver(FacturaVentaSchema),
     defaultValues: {
-      proyectoId,
+      proyectoId: proyectoId ?? null,
       clienteNombre: clienteNombreSugerido ?? '',
       clienteRuc: '',
-      clienteEmail: '',
+      clienteEmail: clienteEmailSugerido ?? '',
       fechaEmision: hoyISO(),
-      lineas: [{ descripcion: '', cantidad: 1, precioUnitario: 0, ordenProduccionId: null }],
+      lineas: lineasSugeridas?.length
+        ? lineasSugeridas.map((l) => ({ ...l, ordenProduccionId: null }))
+        : [{ descripcion: '', cantidad: 1, precioUnitario: 0, ordenProduccionId: null }],
     },
   });
 

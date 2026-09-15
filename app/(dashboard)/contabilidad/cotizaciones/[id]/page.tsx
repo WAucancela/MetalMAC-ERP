@@ -2,7 +2,7 @@
  * /contabilidad/cotizaciones/[id] — detalle de una cotización.
  * Acciones según estado: BORRADOR -> enviar por email o eliminar;
  * ENVIADA/VENCIDA -> marcar aprobada/rechazada; APROBADA sin proyecto -> convertir
- * a Proyecto. PDF descargable siempre.
+ * a Proyecto; APROBADA -> facturar (con o sin proyecto vinculado). PDF descargable siempre.
  */
 'use client';
 
@@ -14,7 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, Send, Check, X, Trash2, Loader2, FolderPlus, Pencil } from 'lucide-react';
+import { ChevronLeft, Send, Check, X, Trash2, Loader2, FolderPlus, Pencil, Receipt } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import {
 } from '@/hooks/useCotizaciones';
 import { ConvertirCotizacionSchema, type ConvertirCotizacionInput } from '@/lib/validations/cotizaciones.schema';
 import type { Cotizacion, EstadoCotizacion } from '@/types/metalmac.types';
+import { GenerarFacturaVentaForm } from '@/components/proyectos/GenerarFacturaVentaForm';
 
 const ESTADO_VARIANT: Record<EstadoCotizacion, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   BORRADOR:  'secondary',
@@ -191,6 +192,7 @@ export default function CotizacionDetallePage() {
   const cambiarEstado = useCambiarEstadoCotizacion(id);
   const eliminar = useEliminarCotizacion();
   const [convirtiendo, setConvirtiendo] = useState(false);
+  const [facturando, setFacturando] = useState(false);
   const [confirmandoEliminar, setConfirmandoEliminar] = useState(false);
 
   const handleEnviar = async () => {
@@ -278,7 +280,32 @@ export default function CotizacionDetallePage() {
             <FolderPlus className="mr-2 h-4 w-4" /> Convertir a proyecto
           </Button>
         )}
+        {cotizacion.estado === 'APROBADA' && (
+          <Button variant="outline" onClick={() => setFacturando((v) => !v)}>
+            <Receipt className="mr-2 h-4 w-4" /> Facturar
+          </Button>
+        )}
       </div>
+
+      {facturando && (
+        <div className="rounded-lg border p-6 space-y-4">
+          <h2 className="text-sm font-semibold">Generar factura de venta</h2>
+          <GenerarFacturaVentaForm
+            proyectoId={cotizacion.proyectoId}
+            clienteNombreSugerido={cotizacion.clienteNombre}
+            clienteEmailSugerido={cotizacion.clienteEmail}
+            lineasSugeridas={cotizacion.lineas.map((l) => ({
+              descripcion: l.descripcion,
+              cantidad: l.cantidad,
+              precioUnitario: l.precioUnitario,
+            }))}
+            onSuccess={(facturaId) => {
+              setFacturando(false);
+              router.push(`/contabilidad/facturas-venta/${facturaId}`);
+            }}
+          />
+        </div>
+      )}
 
       {/* Datos generales */}
       <div className="rounded-lg border p-4 grid grid-cols-2 gap-4 text-sm">
