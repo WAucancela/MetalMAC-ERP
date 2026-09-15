@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser, canWrite } from '@/app/api/_helpers';
 import { ActualizarProyectoSchema } from '@/lib/validations/proyectos.schema';
-import { mapProyectoRow, mapGastoRow } from '@/lib/services/mappers';
+import { mapProyectoRow, mapGastoRow, mapCotizacionRow } from '@/lib/services/mappers';
 import type { Database } from '@/types/supabase.types';
 
 // Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
@@ -22,16 +22,33 @@ export async function GET(request: Request, { params }: RouteParams) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const [{ data: proyecto, error: proyectoError }, { data: gastos, error: gastosError }, { data: ordenes, error: ordenesError }] =
-      await Promise.all([
-        supabaseAdmin.from('proyectos').select('*').eq('id', params.id).maybeSingle(),
-        supabaseAdmin.from('gastos').select('*').eq('proyecto_id', params.id).order('fecha', { ascending: false }).limit(200),
-        supabaseAdmin.from('ordenes_produccion').select('id').eq('proyecto_id', params.id),
-      ]);
+    const [
+      { data: proyecto, error: proyectoError },
+      { data: gastos, error: gastosError },
+      { data: ordenes, error: ordenesError },
+      { data: cotizaciones, error: cotizacionesError },
+    ] = await Promise.all([
+      supabaseAdmin.from('proyectos').select('*').eq('id', params.id).maybeSingle(),
+      supabaseAdmin.from('gastos').select('*').eq('proyecto_id', params.id).order('fecha', { ascending: false }).limit(200),
+      supabaseAdmin.from('ordenes_produccion').select('id').eq('proyecto_id', params.id),
+      // Cotización que originó el proyecto (si lo hubo) — se usa para precargar
+      // ítems/cliente al generar la factura de venta desde este proyecto.
+      supabaseAdmin
+        .from('cotizaciones')
+        .select('*, cotizacion_lineas(*)')
+        .eq('proyecto_id', params.id)
+        .order('creado_en', { ascending: true })
+        .limit(1),
+    ]);
     if (proyectoError) throw proyectoError;
     if (gastosError) throw gastosError;
     if (ordenesError) throw ordenesError;
+    if (cotizacionesError) throw cotizacionesError;
     if (!proyecto) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 404 });
+
+    const cotizacionOrigen = cotizaciones?.[0]
+      ? mapCotizacionRow(cotizaciones[0], cotizaciones[0].cotizacion_lineas)
+      : null;
 
     return NextResponse.json({
       ok: true,
@@ -42,6 +59,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         // el trigger sobre gastos (fuente de verdad única, ver Fase 1).
         costoReal: Number(proyecto.costo_real),
         ordenesProduccion: (ordenes ?? []).map((o) => o.id),
+        cotizacionOrigen,
       },
     });
   } catch (e) {

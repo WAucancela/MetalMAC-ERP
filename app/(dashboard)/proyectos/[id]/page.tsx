@@ -50,7 +50,7 @@ export default function ProyectoDetallePage() {
 
   if (!data) return <p className="text-sm text-muted-foreground">Proyecto no encontrado.</p>;
 
-  const { proyecto, gastos = [], costoReal, ordenesProduccion = [] } = data;
+  const { proyecto, gastos = [], costoReal, ordenesProduccion = [], cotizacionOrigen } = data;
   const fechaInicio = tsToDate(proyecto.fechaInicio);
   const fechaFin    = tsToDate(proyecto.fechaFin);
 
@@ -154,6 +154,12 @@ export default function ProyectoDetallePage() {
           <GenerarFacturaVentaForm
             proyectoId={id}
             clienteNombreSugerido={proyecto.cliente}
+            clienteEmailSugerido={cotizacionOrigen?.clienteEmail}
+            lineasSugeridas={cotizacionOrigen?.lineas.map((l: { descripcion: string; cantidad: number; precioUnitario: number }) => ({
+              descripcion: l.descripcion,
+              cantidad: l.cantidad,
+              precioUnitario: l.precioUnitario,
+            }))}
             onSuccess={(facturaId) => {
               setShowFacturaForm(false);
               router.push(`/contabilidad/facturas-venta/${facturaId}`);
