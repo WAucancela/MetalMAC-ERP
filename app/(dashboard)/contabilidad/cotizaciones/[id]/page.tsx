@@ -6,7 +6,7 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -14,7 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronLeft, Send, Check, X, Trash2, Loader2, FolderPlus } from 'lucide-react';
+import { ChevronLeft, Send, Check, X, Trash2, Loader2, FolderPlus, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 import {
   useCotizacion, useEnviarCotizacion, useCambiarEstadoCotizacion, useEliminarCotizacion, useConvertirCotizacion,
+  useActualizarCotizacion,
 } from '@/hooks/useCotizaciones';
 import { ConvertirCotizacionSchema, type ConvertirCotizacionInput } from '@/lib/validations/cotizaciones.schema';
 import type { Cotizacion, EstadoCotizacion } from '@/types/metalmac.types';
@@ -98,6 +99,86 @@ function ConvertirAProyectoDialog({ cotizacion, onClose }: { cotizacion: Cotizac
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Email/WhatsApp editables sólo en BORRADOR — se completan antes de enviar. */
+function ContactoClienteEditable({ cotizacion }: { cotizacion: Cotizacion }) {
+  const actualizar = useActualizarCotizacion(cotizacion.id);
+  const [editando, setEditando] = useState(false);
+  const [email, setEmail] = useState(cotizacion.clienteEmail);
+  const [whatsapp, setWhatsapp] = useState(cotizacion.clienteWhatsapp);
+
+  useEffect(() => {
+    if (!editando) {
+      setEmail(cotizacion.clienteEmail);
+      setWhatsapp(cotizacion.clienteWhatsapp);
+    }
+  }, [cotizacion.clienteEmail, cotizacion.clienteWhatsapp, editando]);
+
+  if (cotizacion.estado !== 'BORRADOR') {
+    return (
+      <>
+        <div>
+          <p className="text-xs text-muted-foreground">Email</p>
+          <p className="font-medium">{cotizacion.clienteEmail || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">WhatsApp</p>
+          <p className="font-medium">{cotizacion.clienteWhatsapp || '—'}</p>
+        </div>
+      </>
+    );
+  }
+
+  if (!editando) {
+    return (
+      <>
+        <div>
+          <p className="text-xs text-muted-foreground">Email</p>
+          <p className="font-medium flex items-center gap-1.5">
+            {cotizacion.clienteEmail || <span className="text-muted-foreground">—</span>}
+            <button type="button" onClick={() => setEditando(true)} className="text-muted-foreground hover:text-foreground">
+              <Pencil className="h-3 w-3" />
+            </button>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">WhatsApp</p>
+          <p className="font-medium">{cotizacion.clienteWhatsapp || '—'}</p>
+        </div>
+      </>
+    );
+  }
+
+  const handleGuardar = async () => {
+    try {
+      await actualizar.mutateAsync({ clienteEmail: email, clienteWhatsapp: whatsapp });
+      toast.success('Datos de contacto actualizados');
+      setEditando(false);
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al actualizar el contacto');
+    }
+  };
+
+  return (
+    <div className="col-span-2 grid grid-cols-2 gap-4 rounded-md border border-dashed p-3">
+      <div className="space-y-1.5">
+        <Label>Email</Label>
+        <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cliente@empresa.com" />
+      </div>
+      <div className="space-y-1.5">
+        <Label>WhatsApp</Label>
+        <Input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+593 99 999 9999" />
+      </div>
+      <div className="col-span-2 flex gap-2">
+        <Button type="button" size="sm" onClick={handleGuardar} disabled={actualizar.isPending}>
+          {actualizar.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+          Guardar
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => setEditando(false)}>Cancelar</Button>
+      </div>
+    </div>
   );
 }
 
@@ -205,14 +286,7 @@ export default function CotizacionDetallePage() {
           <p className="text-xs text-muted-foreground">Cliente</p>
           <p className="font-medium">{cotizacion.clienteNombre}</p>
         </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Email</p>
-          <p className="font-medium">{cotizacion.clienteEmail || '—'}</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">WhatsApp</p>
-          <p className="font-medium">{cotizacion.clienteWhatsapp || '—'}</p>
-        </div>
+        <ContactoClienteEditable cotizacion={cotizacion} />
         <div>
           <p className="text-xs text-muted-foreground">Proyecto vinculado</p>
           {cotizacion.proyectoId ? (
