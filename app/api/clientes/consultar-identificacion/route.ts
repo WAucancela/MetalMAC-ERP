@@ -13,7 +13,9 @@
  *   cambie.
  *
  *   URL y forma de respuesta verificadas en vivo el 2026-09-11 contra un RUC
- *   real (0992419016001, OCEANSECURITY C. LTDA.):
+ *   real (0992419016001, OCEANSECURITY C. LTDA., SOCIEDAD) y el 2026-10-21
+ *   contra un RUC de PERSONA NATURAL — en ambos casos el nombre viene en
+ *   `razonSocial`, no hay un campo `nombre` separado:
  *     GET .../ConsolidadoContribuyente/obtenerPorNumerosRuc?&ruc={ruc}
  *     → 200 con un ARRAY: [{ razonSocial, estadoContribuyenteRuc,
  *       tipoContribuyente: "SOCIEDAD" | "PERSONA NATURAL", ... }]
