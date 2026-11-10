@@ -214,9 +214,12 @@ productos `PRODUCTO_TERMINADO` y activos; un semielaborado no se vende suelto.
 
 **Cómo funciona:**
 
-- Sin imagen (`productos.imagen_url` vacío) el producto se publica como **borrador** en
-  WooCommerce — existe pero no es visible en la tienda — para no mostrar una ficha sin foto.
-  Agregale una URL de imagen en Editar → Tienda (tallermac.com) y volvé a publicar.
+- Sin ninguna imagen (`productos.imagen_urls` vacío) el producto se publica como
+  **borrador** en WooCommerce — existe pero no es visible en la tienda — para no mostrar
+  una ficha sin foto. En Editar → Tienda (tallermac.com) podés subir una foto desde tu
+  computadora (se guarda en el bucket público `productos-imagenes` de Supabase Storage)
+  o pegar la URL de una imagen que ya esté publicada en otro lado; admite varias, la
+  primera queda como foto principal. Después volvé a publicar.
 - `productos.wc_product_id` enlaza el producto del ERP con el de WooCommerce: la primera
   publicación crea el producto y guarda ese id; las siguientes actualizan el mismo producto
   en vez de crear uno duplicado.

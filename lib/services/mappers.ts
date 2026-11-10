@@ -90,7 +90,7 @@ export function mapProductoRow(row: ProductoRow): Producto {
     unidadVenta: row.unidad_venta,
     precioVenta: Number(row.precio_venta),
     activo: row.activo,
-    imagenUrl: row.imagen_url,
+    imagenUrls: row.imagen_urls,
     wcProductId: row.wc_product_id,
     wcSincronizadoEn: row.wc_sincronizado_en,
   };

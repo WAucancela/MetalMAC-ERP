@@ -438,7 +438,9 @@ export interface Producto {
   unidadVenta: string;
   precioVenta: number;
   activo: boolean;
-  imagenUrl: string;
+  // Una o más URLs separadas por salto de línea — ver parsearUrlsImagenes en
+  // woocommerce.service.ts para cómo se interpretan al publicar.
+  imagenUrls: string;
   wcProductId: number | null;
   wcSincronizadoEn: string | null;
 }

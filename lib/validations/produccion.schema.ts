@@ -12,11 +12,12 @@ export const ProductoSchema = z.object({
   unidadVenta: z.string().min(1),         // "UNIDAD", "m²", etc.
   precioVenta: z.number().nonnegative(),
   activo: z.boolean().default(true),
-  // URL pública de la imagen a usar al publicar en WooCommerce. Vacío = sin imagen
-  // todavía (la publicación es posible igual, pero el producto sale sin foto).
-  imagenUrl: z.string().trim().max(500).refine(
-    (v) => v === '' || /^https?:\/\//i.test(v),
-    'Debe ser una URL http(s) o estar vacío',
+  // Una o más URLs públicas (una por línea) a usar al publicar en WooCommerce.
+  // Vacío = sin imágenes todavía (la publicación es posible igual, pero el
+  // producto sale sin foto). Cada línea no vacía debe ser una URL http(s).
+  imagenUrls: z.string().max(2000).refine(
+    (v) => v.split('\n').map((l) => l.trim()).filter(Boolean).every((l) => /^https?:\/\//i.test(l)),
+    'Cada línea debe ser una URL http(s) o estar vacía',
   ).default(''),
 });
 

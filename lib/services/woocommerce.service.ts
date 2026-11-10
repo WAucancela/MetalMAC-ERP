@@ -84,33 +84,49 @@ export interface PayloadProductoWC {
 }
 
 /**
+ * Parsea el campo `imagenUrls` (una URL por línea, tal como se escribe en el
+ * formulario) a la lista de URLs no vacías que efectivamente se mandan a WooCommerce.
+ * Ignora líneas en blanco — así el staff puede dejar líneas sueltas al editar sin
+ * que cuenten como una URL vacía.
+ */
+export function parsearUrlsImagenes(imagenUrls: string): string[] {
+  return imagenUrls
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l !== '');
+}
+
+/**
  * Construye el payload de WooCommerce a partir de un producto del ERP.
  *
  * No depende de si el producto ya existe en WooCommerce (eso lo decide
  * woocommerce-api.service.ts según `wcProductId`) — siempre arma el mismo cuerpo,
- * válido tanto para crear como para actualizar.
+ * válido tanto para crear como para actualizar. Al actualizar, la lista de
+ * `images` que se manda reemplaza por completo las imágenes del producto en
+ * WooCommerce (comportamiento estándar de su REST API) — no se agregan, se
+ * sincronizan con lo que diga `imagenUrls` en ese momento.
  *
  * `manage_stock: false` + `stock_status: 'instock'` a propósito: la fabricación acá
  * es a pedido (sin stock de producto terminado en el modelo del ERP), así que un
  * producto publicado siempre se ofrece como disponible en vez de sincronizar una
  * cantidad que no existe.
  *
- * `status: 'draft'` cuando no hay imagen — evita publicar en la tienda un producto
- * sin foto; queda como borrador en WooCommerce hasta que alguien le ponga `imagenUrl`
- * y lo vuelva a publicar.
+ * `status: 'draft'` cuando no hay ninguna imagen — evita publicar en la tienda un
+ * producto sin foto; queda como borrador en WooCommerce hasta que alguien le ponga
+ * `imagenUrls` y lo vuelva a publicar.
  */
 export function construirPayloadProductoWC(producto: Producto): PayloadProductoWC {
-  const tieneImagen = producto.imagenUrl.trim() !== '';
+  const urls = parsearUrlsImagenes(producto.imagenUrls);
 
   return {
     name: producto.nombre,
     sku: producto.codigo,
     description: producto.descripcion,
     regular_price: producto.precioVenta.toFixed(2),
-    status: tieneImagen ? 'publish' : 'draft',
+    status: urls.length > 0 ? 'publish' : 'draft',
     manage_stock: false,
     stock_status: 'instock',
-    ...(tieneImagen ? { images: [{ src: producto.imagenUrl }] } : {}),
+    ...(urls.length > 0 ? { images: urls.map((src) => ({ src })) } : {}),
   };
 }
 

@@ -4,14 +4,15 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
 import { ProductoSchema, type ProductoInput } from '@/lib/validations/produccion.schema';
-import { useProducto, useActualizarProducto } from '@/hooks/useProductos';
+import { useProducto, useActualizarProducto, useSubirImagenProducto } from '@/hooks/useProductos';
 import { useUnidades } from '@/hooks/useInventario';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,9 @@ export default function EditarProductoPage() {
 function FormularioProducto({ id, producto }: { id: string; producto: NonNullable<ReturnType<typeof useProducto>['data']>['producto'] }) {
   const router = useRouter();
   const { mutateAsync: actualizarProducto, isPending } = useActualizarProducto(id);
+  const { mutateAsync: subirImagen, isPending: subiendoImagen } = useSubirImagenProducto(id);
   const { data: unidades = [] } = useUnidades();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     register, handleSubmit, setValue, watch,
@@ -71,7 +74,7 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
       unidadVenta: producto.unidadVenta,
       precioVenta: producto.precioVenta,
       activo: producto.activo,
-      imagenUrl: producto.imagenUrl ?? '',
+      imagenUrls: producto.imagenUrls ?? '',
     },
   });
 
@@ -86,6 +89,19 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
       router.push(`/productos/${id}`);
     } catch (err) {
       toast.error((err as Error).message ?? 'Error al actualizar producto');
+    }
+  };
+
+  const onSeleccionarImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite volver a elegir el mismo archivo después
+    if (!file) return;
+    try {
+      const { imagenUrls } = await subirImagen(file);
+      setValue('imagenUrls', imagenUrls, { shouldDirty: true });
+      toast.success('Imagen subida y agregada');
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Error al subir la imagen');
     }
   };
 
@@ -186,18 +202,55 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
           <div>
             <h2 className="text-sm font-medium text-foreground">Tienda (tallermac.com)</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Imagen a usar al publicar este producto en la tienda. Sin imagen, se publica
-              como borrador (no visible) hasta que le pongas una.
+              Una o más imágenes a usar al publicar este producto en la tienda — la primera
+              queda como foto principal. Sin ninguna, se publica como borrador (no visible)
+              hasta que le subas al menos una.
             </p>
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="imagenUrl">URL de la imagen</Label>
-            <Input
-              id="imagenUrl"
-              placeholder="https://tallermac.com/wp-content/uploads/..."
-              {...register('imagenUrl')}
+            <Label>Subir una foto desde tu computadora</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={onSeleccionarImagen}
             />
-            {errors.imagenUrl && <p className="text-xs text-red-500">{errors.imagenUrl.message}</p>}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={subiendoImagen}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {subiendoImagen
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Upload className="mr-2 h-4 w-4" />}
+                {subiendoImagen ? 'Subiendo…' : 'Subir imagen'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG, WEBP o GIF · máx. 5 MB. Se agrega sola a la lista de abajo y queda
+              guardada al instante (no hace falta tocar "Guardar cambios" para esto).
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="imagenUrls">URLs de las imágenes (una por línea)</Label>
+            <textarea
+              id="imagenUrls"
+              rows={4}
+              placeholder={'https://tallermac.com/wp-content/uploads/.../foto-1.webp\nhttps://tallermac.com/wp-content/uploads/.../foto-2.webp'}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 resize-none font-mono"
+              {...register('imagenUrls')}
+            />
+            {errors.imagenUrls && <p className="text-xs text-red-500">{errors.imagenUrls.message}</p>}
+            <p className="text-xs text-muted-foreground">
+              También podés pegar acá URLs de imágenes que ya estén publicadas en otro lado
+              (por ejemplo, ya subidas a tallermac.com).
+            </p>
           </div>
         </div>
 

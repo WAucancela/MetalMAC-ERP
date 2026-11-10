@@ -14,6 +14,7 @@ import {
   calcularLineasAInsertar,
   construirPayloadProductoWC,
   puedePublicarseEnTienda,
+  parsearUrlsImagenes,
 } from '../lib/services/woocommerce.service';
 import type { Producto } from '../types/metalmac.types';
 
@@ -128,7 +129,7 @@ describe('construirPayloadProductoWC', () => {
     unidadVenta: 'UNIDAD',
     precioVenta: 125.5,
     activo: true,
-    imagenUrl: '',
+    imagenUrls: '',
     wcProductId: null,
     wcSincronizadoEn: null,
   };
@@ -153,13 +154,43 @@ describe('construirPayloadProductoWC', () => {
     expect(payload.images).toBeUndefined();
   });
 
-  it('publica visible y manda la imagen si hay imagenUrl', () => {
+  it('publica visible y manda la imagen si hay una sola URL', () => {
     const payload = construirPayloadProductoWC({
       ...productoBase,
-      imagenUrl: 'https://tallermac.com/foto.jpg',
+      imagenUrls: 'https://tallermac.com/foto.jpg',
     });
     expect(payload.status).toBe('publish');
     expect(payload.images).toEqual([{ src: 'https://tallermac.com/foto.jpg' }]);
+  });
+
+  it('manda todas las URLs cuando hay varias, en el mismo orden', () => {
+    const payload = construirPayloadProductoWC({
+      ...productoBase,
+      imagenUrls: 'https://tallermac.com/foto-1.jpg\nhttps://tallermac.com/foto-2.jpg',
+    });
+    expect(payload.status).toBe('publish');
+    expect(payload.images).toEqual([
+      { src: 'https://tallermac.com/foto-1.jpg' },
+      { src: 'https://tallermac.com/foto-2.jpg' },
+    ]);
+  });
+
+  describe('parsearUrlsImagenes', () => {
+    it('separa por línea y descarta las líneas en blanco', () => {
+      expect(parsearUrlsImagenes('https://a.com/1.jpg\n\nhttps://a.com/2.jpg\n')).toEqual([
+        'https://a.com/1.jpg',
+        'https://a.com/2.jpg',
+      ]);
+    });
+
+    it('recorta espacios alrededor de cada URL', () => {
+      expect(parsearUrlsImagenes('  https://a.com/1.jpg  ')).toEqual(['https://a.com/1.jpg']);
+    });
+
+    it('retorna vacío para un texto vacío o solo espacios/saltos de línea', () => {
+      expect(parsearUrlsImagenes('')).toEqual([]);
+      expect(parsearUrlsImagenes('\n  \n')).toEqual([]);
+    });
   });
 
   describe('puedePublicarseEnTienda', () => {

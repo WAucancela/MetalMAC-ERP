@@ -1618,7 +1618,7 @@ export type Database = {
           codigo: string
           descripcion: string
           id: string
-          imagen_url: string
+          imagen_urls: string
           nombre: string
           precio_venta: number
           tipo: Database["public"]["Enums"]["tipo_producto"]
@@ -1631,7 +1631,7 @@ export type Database = {
           codigo: string
           descripcion?: string
           id?: string
-          imagen_url?: string
+          imagen_urls?: string
           nombre: string
           precio_venta?: number
           tipo: Database["public"]["Enums"]["tipo_producto"]
@@ -1644,7 +1644,7 @@ export type Database = {
           codigo?: string
           descripcion?: string
           id?: string
-          imagen_url?: string
+          imagen_urls?: string
           nombre?: string
           precio_venta?: number
           tipo?: Database["public"]["Enums"]["tipo_producto"]
