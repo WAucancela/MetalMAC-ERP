@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getAuthenticatedUser } from '@/app/api/_helpers';
+import { getAuthenticatedUser, puedeGestionarFinanzas } from '@/app/api/_helpers';
 import { ResolverEquivalenciasSchema } from '@/lib/validations/sri.schema';
 import { resolverLineasFactura } from '@/lib/services/equivalencias.service';
 
@@ -19,6 +19,10 @@ export async function POST(request: Request) {
   const user = await getAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+  // Mismo dominio que /api/sri/parse-xml (facturas de compra) — CONTABILIDAD/GERENTE.
+  if (!puedeGestionarFinanzas(user)) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
   }
 
   let body: unknown;

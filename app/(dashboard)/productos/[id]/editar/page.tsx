@@ -71,6 +71,7 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
       unidadVenta: producto.unidadVenta,
       precioVenta: producto.precioVenta,
       activo: producto.activo,
+      imagenUrl: producto.imagenUrl ?? '',
     },
   });
 
@@ -178,6 +179,25 @@ function FormularioProducto({ id, producto }: { id: string; producto: NonNullabl
               {...register('precioVenta', { valueAsNumber: true })}
             />
             {errors.precioVenta && <p className="text-xs text-red-500">{errors.precioVenta.message}</p>}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-6 space-y-5">
+          <div>
+            <h2 className="text-sm font-medium text-foreground">Tienda (tallermac.com)</h2>
+            <p className="text-xs text-muted-foreground mt-1">
+              Imagen a usar al publicar este producto en la tienda. Sin imagen, se publica
+              como borrador (no visible) hasta que le pongas una.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="imagenUrl">URL de la imagen</Label>
+            <Input
+              id="imagenUrl"
+              placeholder="https://tallermac.com/wp-content/uploads/..."
+              {...register('imagenUrl')}
+            />
+            {errors.imagenUrl && <p className="text-xs text-red-500">{errors.imagenUrl.message}</p>}
           </div>
         </div>
 

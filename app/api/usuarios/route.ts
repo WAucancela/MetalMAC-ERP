@@ -59,10 +59,20 @@ export async function POST(request: Request) {
     .from('perfiles')
     .insert({ id: creado.user.id, email, rol, activo: true });
   if (perfilError) {
-    // El usuario de auth ya se creó — no lo revertimos (el rol/perfil se puede
-    // corregir aparte); reportamos el problema para que quede claro.
-    console.error('[POST /api/usuarios] usuario creado en auth pero falló el espejo en perfiles', perfilError);
-    return NextResponse.json({ error: 'Usuario creado pero no se pudo guardar su perfil' }, { status: 500 });
+    // Compensar: si el espejo en `perfiles` no se pudo guardar, no dejar un usuario
+    // de Auth huérfano (sin fila en perfiles, invisible para el resto del ERP pero
+    // igual capaz de loguearse) — se revierte la creación en Auth y se reporta el
+    // error tal cual, para reintentar limpio.
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(creado.user.id);
+    if (deleteError) {
+      console.error(
+        '[POST /api/usuarios] usuario creado en auth, falló el espejo en perfiles, Y falló la reversión — queda huérfano',
+        { perfilError, deleteError, userId: creado.user.id },
+      );
+      return NextResponse.json({ error: 'Usuario creado pero no se pudo guardar su perfil (y no se pudo revertir)' }, { status: 500 });
+    }
+    console.error('[POST /api/usuarios] falló el espejo en perfiles — se revirtió la creación en auth', perfilError);
+    return NextResponse.json({ error: 'No se pudo crear el usuario — intentá de nuevo' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, data: { id: creado.user.id, email, rol } }, { status: 201 });

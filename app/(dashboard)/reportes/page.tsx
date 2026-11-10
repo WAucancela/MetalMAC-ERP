@@ -15,7 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExportButton } from '@/components/ui/ExportButton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCentrosCosto } from '@/hooks/useCentrosCosto';
+import { useResumenCotizacionesPorOrigen } from '@/hooks/useReportes';
+
+const ORIGEN_LABEL: Record<string, string> = { STAFF: 'Staff', WHATSAPP_BOT: 'Agente de WhatsApp' };
+
+function formatUSD(n: number): string {
+  return `$${n.toLocaleString('es-EC', { minimumFractionDigits: 2 })}`;
+}
 
 const SIN_FILTRO = '__todos__';
 
@@ -75,6 +83,13 @@ export default function ReportesPage() {
   const [prodDesde, setProdDesde] = useState(hace30DiasISO());
   const [prodHasta, setProdHasta] = useState(en30DiasISO());
   const [prodEstado, setProdEstado] = useState('');
+
+  const [origenDesde, setOrigenDesde] = useState(hace30DiasISO());
+  const [origenHasta, setOrigenHasta] = useState(hoyISO());
+  const { data: resumenOrigen, isLoading: cargandoResumenOrigen } = useResumenCotizacionesPorOrigen({
+    desde: origenDesde,
+    hasta: origenHasta,
+  });
 
   return (
     <div className="space-y-6">
@@ -199,6 +214,51 @@ export default function ReportesPage() {
               </SelectContent>
             </Select>
           </div>
+        </ReporteCard>
+
+        <ReporteCard
+          titulo="Cotizaciones: Staff vs. Agente de WhatsApp"
+          descripcion="Compara cuánto cotiza el equipo a mano contra lo que arma solo el bot de WhatsApp, y qué tan seguido se aprueba cada uno."
+          exportHref={`/api/reportes/cotizaciones-por-origen?format=csv&desde=${origenDesde}&hasta=${origenHasta}`}
+          filename={`cotizaciones_por_origen_${origenDesde}_${origenHasta}.csv`}
+        >
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Desde</Label>
+            <Input type="date" className="w-40" value={origenDesde} onChange={(e) => setOrigenDesde(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Hasta</Label>
+            <Input type="date" className="w-40" value={origenHasta} onChange={(e) => setOrigenHasta(e.target.value)} />
+          </div>
+
+          {cargandoResumenOrigen ? (
+            <Skeleton className="h-16 w-full" />
+          ) : resumenOrigen && resumenOrigen.length > 0 ? (
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1 text-left">Canal</th>
+                    <th className="px-2 py-1 text-right">Cotizaciones</th>
+                    <th className="px-2 py-1 text-right">Monto total</th>
+                    <th className="px-2 py-1 text-right">Tasa de aprobación</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {resumenOrigen.map((r) => (
+                    <tr key={r.origen}>
+                      <td className="px-2 py-1 font-medium">{ORIGEN_LABEL[r.origen] ?? r.origen}</td>
+                      <td className="px-2 py-1 text-right">{r.totalCotizaciones}</td>
+                      <td className="px-2 py-1 text-right">{formatUSD(r.montoTotal)}</td>
+                      <td className="px-2 py-1 text-right">
+                        {r.tasaAprobacion === null ? '—' : `${(r.tasaAprobacion * 100).toFixed(0)}%`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </ReporteCard>
       </div>
     </div>

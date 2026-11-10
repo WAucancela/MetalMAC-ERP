@@ -156,8 +156,9 @@ revisión (`/pedidos-woocommerce`) — nunca crean una Orden de Producción auto
 El staff (GERENTE/PRODUCCION) decide manualmente qué línea de qué pedido se convierte en
 qué orden.
 
-Para esta fase (solo recepción) **no hace falta** generar Consumer Key/Secret de la REST
-API de WooCommerce — sólo el secreto que WooCommerce genera al crear el webhook.
+La recepción de pedidos (webhook) solo necesita el secreto del webhook. La **publicación
+de productos del ERP hacia la tienda** (sentido contrario — ver más abajo) sí necesita
+Consumer Key/Secret de la REST API.
 
 ### Configurar el webhook en WordPress
 
@@ -192,6 +193,38 @@ pre-seleccionado y el staff lo elige a mano en la bandeja de revisión — aseg�
 los SKU en tallermac.com coincidan con los códigos de producto del ERP para aprovechar el
 auto-match.
 
+### Publicar productos del ERP en la tienda
+
+Sentido contrario al de arriba: el producto se crea/edita en el ERP y desde ahí se publica
+en tallermac.com — nunca al revés, no hay sincronización automática ni polling. El botón
+**Publicar en Tienda** (en el detalle de un producto, `/productos/[id]`) solo aparece para
+productos `PRODUCTO_TERMINADO` y activos; un semielaborado no se vende suelto.
+
+**Generar las credenciales** (una sola vez):
+
+1. WordPress Admin → **WooCommerce → Ajustes → Avanzado → API REST → Agregar clave**
+2. **Descripción**: `MetalMAC ERP — Publicación de productos` · **Permisos**: Lectura/Escritura
+3. Copia el **Consumer Key** y **Consumer Secret** que te muestra (una sola vez — si los
+   perdés hay que generar otro par)
+4. En Vercel (Settings → Environment Variables) agrega:
+   - `WOOCOMMERCE_API_URL` → `https://tallermac.com` (sin slash final)
+   - `WOOCOMMERCE_CONSUMER_KEY`
+   - `WOOCOMMERCE_CONSUMER_SECRET`
+5. Vuelve a desplegar para que tomen efecto
+
+**Cómo funciona:**
+
+- Sin imagen (`productos.imagen_url` vacío) el producto se publica como **borrador** en
+  WooCommerce — existe pero no es visible en la tienda — para no mostrar una ficha sin foto.
+  Agregale una URL de imagen en Editar → Tienda (tallermac.com) y volvé a publicar.
+- `productos.wc_product_id` enlaza el producto del ERP con el de WooCommerce: la primera
+  publicación crea el producto y guarda ese id; las siguientes actualizan el mismo producto
+  en vez de crear uno duplicado.
+- Sin manejo de stock: la fabricación es a pedido, así que todo producto publicado se marca
+  "disponible" en WooCommerce en vez de sincronizar una cantidad que no existe en el ERP.
+- Categoría e imágenes adicionales se asignan a mano en WooCommerce después de la primera
+  publicación — no están cubiertas por esta integración todavía.
+
 ---
 
 ## Roles del sistema
@@ -204,6 +237,65 @@ auto-match.
 | `CONTABILIDAD` | Proveedores, facturas de compra |
 
 Asignar con: `npm run create-admin -- email@empresa.com ROL`
+
+---
+
+## Rate limiting (Vercel Firewall)
+
+El ERP no tiene ningún rate limiting propio — dos endpoints son alcanzables sin login
+y valen la pena proteger a nivel de plataforma (gratis en cualquier plan, no
+consume cuota de la función):
+
+- `POST /api/webhooks/woocommerce` — autenticado por firma HMAC, no por sesión;
+  cualquiera puede mandarle tráfico e intentar agotar la cuota de funciones.
+- `GET /api/clientes/consultar-identificacion` — pega contra un endpoint no
+  oficial del SRI (`srienlinea.sri.gob.ec`); un abuso acá puede hacer que el SRI
+  nos banee la IP de salida de Vercel para todo el proyecto.
+
+Requiere `npm i -g vercel`, `vercel login` y `vercel link` (una vez). Los cambios
+quedan en borrador hasta `vercel firewall publish --yes` — revisar con
+`vercel firewall diff` antes de publicar.
+
+```bash
+vercel firewall rules add "Rate limit webhook WooCommerce" \
+  --condition '{"type":"path","op":"eq","value":"/api/webhooks/woocommerce"}' \
+  --action rate_limit \
+  --rate-limit-window 60 \
+  --rate-limit-requests 30 \
+  --rate-limit-keys ip \
+  --rate-limit-action deny \
+  --yes
+
+vercel firewall rules add "Rate limit consulta SRI" \
+  --condition '{"type":"path","op":"eq","value":"/api/clientes/consultar-identificacion"}' \
+  --action rate_limit \
+  --rate-limit-window 60 \
+  --rate-limit-requests 20 \
+  --rate-limit-keys ip \
+  --rate-limit-action deny \
+  --yes
+
+vercel firewall diff
+vercel firewall publish --yes
+```
+
+Los límites de arriba son un punto de partida generoso (tráfico legítimo real de
+un taller nunca se acerca a 30 webhooks/min ni 20 consultas/min desde una sola
+IP) — si el dashboard de Firewall muestra falsos positivos, subirlos.
+
+---
+
+## Backups / recuperación ante desastres
+
+Supabase hace backups diarios automáticos en todos los planes, pero **Point-in-Time
+Recovery (PITR)** — poder restaurar a un minuto específico, no solo al snapshot
+de la noche anterior — requiere el add-on pago de PITR (Pro plan en adelante).
+Sin PITR, perder datos entre el último backup diario y un `DELETE`/migración mal
+corrida es un riesgo real para datos de facturación/inventario reales.
+
+Antes de depender de esto en producción: confirmar en Supabase Dashboard →
+Project Settings → Add-ons cuál es el plan/retención actual del proyecto
+`metalmac-erp`, y si hace falta subir de plan para tener PITR.
 
 ---
 

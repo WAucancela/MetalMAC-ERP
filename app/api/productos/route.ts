@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         unidad_venta: parsed.data.unidadVenta,
         precio_venta: parsed.data.precioVenta,
         activo: parsed.data.activo,
+        imagen_url: parsed.data.imagenUrl,
       })
       .select()
       .single();

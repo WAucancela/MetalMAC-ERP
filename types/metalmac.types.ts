@@ -336,7 +336,9 @@ export interface Cotizacion {
   ultimoSeguimientoEn: string | null;
   vecesRecordado: number;
   creadoEn: string;
-  creadoPor: string;
+  // Nullable desde la migración del agente de WhatsApp: una cotización creada por
+  // el bot no tiene un usuario humano logueado detrás.
+  creadoPor: string | null;
 }
 
 // ─────────────────────────────────────────────
@@ -436,6 +438,9 @@ export interface Producto {
   unidadVenta: string;
   precioVenta: number;
   activo: boolean;
+  imagenUrl: string;
+  wcProductId: number | null;
+  wcSincronizadoEn: string | null;
 }
 
 // ─────────────────────────────────────────────
@@ -707,4 +712,36 @@ export interface PedidoWooCommerce {
   recibidoEn: string;
   procesadoEn: string | null;
   procesadoPor: string | null;
+}
+
+// ─────────────────────────────────────────────
+// Agente de ventas de WhatsApp
+// ─────────────────────────────────────────────
+
+/**
+ * `CLIENTE`/`AGENTE` son turnos de texto real; `SISTEMA` es una acción del
+ * agente que no es texto (una búsqueda en el catálogo, una cotización creada)
+ * — se muestra en el timeline pero no es algo que haya "dicho" nadie.
+ */
+export type RolMensajeWhatsApp = 'CLIENTE' | 'AGENTE' | 'SISTEMA';
+
+export interface MensajeConversacionWhatsApp {
+  rol: RolMensajeWhatsApp;
+  texto: string;
+}
+
+export interface ConversacionWhatsAppResumen {
+  id: string;
+  telefono: string;
+  nombreContacto: string;
+  clienteId: string | null;
+  cotizacionBorradorId: string | null;
+  estado: 'ACTIVA' | 'CERRADA';
+  ultimoMensaje: string;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface ConversacionWhatsApp extends ConversacionWhatsAppResumen {
+  mensajes: MensajeConversacionWhatsApp[];
 }

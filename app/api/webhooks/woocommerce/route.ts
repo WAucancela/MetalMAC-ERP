@@ -43,49 +43,29 @@ export async function POST(request: Request) {
   const pedido = parsed.data;
 
   try {
-    // 1. Upsert de cabecera por wc_order_id — insert primero; si ya existe (23505),
-    //    actualizar sólo los campos que vienen de WooCommerce.
-    const { data: existente } = await supabaseAdmin
+    // 1. Upsert de cabecera por wc_order_id — un solo `INSERT ... ON CONFLICT DO UPDATE`
+    //    atómico (antes esto era un select→branch insert/update, con una ventana de
+    //    carrera real: dos entregas casi simultáneas del mismo pedido — WooCommerce
+    //    suele mandar "order.created" y "order.updated" juntos — podían leer "no
+    //    existe" las dos y chocar contra el `unique` de wc_order_id). `id` no se
+    //    toca en el conflicto porque no está en el objeto, así que en un update se
+    //    preserva el id existente.
+    const { data: upserted, error: upsertError } = await supabaseAdmin
       .from('pedidos_woocommerce')
+      .upsert({
+        wc_order_id: pedido.id,
+        wc_status: pedido.status,
+        numero_pedido: pedido.number,
+        cliente_nombre: `${pedido.billing.first_name} ${pedido.billing.last_name}`.trim(),
+        cliente_email: pedido.billing.email,
+        total: Number(pedido.total),
+        moneda: pedido.currency,
+        payload: pedido as unknown as Json,
+      }, { onConflict: 'wc_order_id' })
       .select('id')
-      .eq('wc_order_id', pedido.id)
-      .maybeSingle();
-
-    let pedidoId: string;
-
-    if (existente) {
-      pedidoId = existente.id;
-      const { error: updateError } = await supabaseAdmin
-        .from('pedidos_woocommerce')
-        .update({
-          wc_status: pedido.status,
-          numero_pedido: pedido.number,
-          cliente_nombre: `${pedido.billing.first_name} ${pedido.billing.last_name}`.trim(),
-          cliente_email: pedido.billing.email,
-          total: Number(pedido.total),
-          moneda: pedido.currency,
-          payload: pedido as unknown as Json,
-        })
-        .eq('id', pedidoId);
-      if (updateError) throw updateError;
-    } else {
-      const { data: creado, error: insertError } = await supabaseAdmin
-        .from('pedidos_woocommerce')
-        .insert({
-          wc_order_id: pedido.id,
-          wc_status: pedido.status,
-          numero_pedido: pedido.number,
-          cliente_nombre: `${pedido.billing.first_name} ${pedido.billing.last_name}`.trim(),
-          cliente_email: pedido.billing.email,
-          total: Number(pedido.total),
-          moneda: pedido.currency,
-          payload: pedido as unknown as Json,
-        })
-        .select('id')
-        .single();
-      if (insertError) throw insertError;
-      pedidoId = creado.id;
-    }
+      .single();
+    if (upsertError) throw upsertError;
+    const pedidoId = upserted.id;
 
     // 2. Resolver producto por SKU contra el catálogo actual.
     const skus = [...new Set(pedido.line_items.map((li) => li.sku).filter(Boolean))];

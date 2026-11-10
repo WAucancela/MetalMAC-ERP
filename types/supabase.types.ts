@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -570,7 +575,7 @@ export type Database = {
           cliente_nombre: string
           cliente_whatsapp: string
           creado_en: string
-          creado_por: string
+          creado_por: string | null
           email_enviado_en: string | null
           estado: Database["public"]["Enums"]["estado_cotizacion"]
           fecha_emision: string
@@ -579,6 +584,7 @@ export type Database = {
           iva: number
           notas: string
           numero: string
+          origen: string
           proyecto_id: string | null
           subtotal_sin_iva: number
           total: number
@@ -591,7 +597,7 @@ export type Database = {
           cliente_nombre: string
           cliente_whatsapp?: string
           creado_en?: string
-          creado_por: string
+          creado_por?: string | null
           email_enviado_en?: string | null
           estado?: Database["public"]["Enums"]["estado_cotizacion"]
           fecha_emision: string
@@ -600,6 +606,7 @@ export type Database = {
           iva?: number
           notas?: string
           numero: string
+          origen?: string
           proyecto_id?: string | null
           subtotal_sin_iva?: number
           total?: number
@@ -612,7 +619,7 @@ export type Database = {
           cliente_nombre?: string
           cliente_whatsapp?: string
           creado_en?: string
-          creado_por?: string
+          creado_por?: string | null
           email_enviado_en?: string | null
           estado?: Database["public"]["Enums"]["estado_cotizacion"]
           fecha_emision?: string
@@ -621,6 +628,7 @@ export type Database = {
           iva?: number
           notas?: string
           numero?: string
+          origen?: string
           proyecto_id?: string | null
           subtotal_sin_iva?: number
           total?: number
@@ -686,6 +694,7 @@ export type Database = {
           material_id: string | null
           orden: number
           precio_unitario: number
+          stock_registrado: boolean
           subtotal: number
         }
         Insert: {
@@ -699,6 +708,7 @@ export type Database = {
           material_id?: string | null
           orden: number
           precio_unitario: number
+          stock_registrado?: boolean
           subtotal: number
         }
         Update: {
@@ -712,6 +722,7 @@ export type Database = {
           material_id?: string | null
           orden?: number
           precio_unitario?: number
+          stock_registrado?: boolean
           subtotal?: number
         }
         Relationships: [
@@ -1607,30 +1618,39 @@ export type Database = {
           codigo: string
           descripcion: string
           id: string
+          imagen_url: string
           nombre: string
           precio_venta: number
           tipo: Database["public"]["Enums"]["tipo_producto"]
           unidad_venta: string
+          wc_product_id: number | null
+          wc_sincronizado_en: string | null
         }
         Insert: {
           activo?: boolean
           codigo: string
           descripcion?: string
           id?: string
+          imagen_url?: string
           nombre: string
           precio_venta?: number
           tipo: Database["public"]["Enums"]["tipo_producto"]
           unidad_venta?: string
+          wc_product_id?: number | null
+          wc_sincronizado_en?: string | null
         }
         Update: {
           activo?: boolean
           codigo?: string
           descripcion?: string
           id?: string
+          imagen_url?: string
           nombre?: string
           precio_venta?: number
           tipo?: Database["public"]["Enums"]["tipo_producto"]
           unidad_venta?: string
+          wc_product_id?: number | null
+          wc_sincronizado_en?: string | null
         }
         Relationships: []
       }
@@ -1925,6 +1945,57 @@ export type Database = {
           tipo?: Database["public"]["Enums"]["tipo_unidad_medida"]
         }
         Relationships: []
+      }
+      whatsapp_conversaciones: {
+        Row: {
+          actualizado_en: string
+          cliente_id: string | null
+          cotizacion_borrador_id: string | null
+          creado_en: string
+          estado: string
+          historial: Json
+          id: string
+          nombre_contacto: string
+          telefono: string
+        }
+        Insert: {
+          actualizado_en?: string
+          cliente_id?: string | null
+          cotizacion_borrador_id?: string | null
+          creado_en?: string
+          estado?: string
+          historial?: Json
+          id?: string
+          nombre_contacto?: string
+          telefono: string
+        }
+        Update: {
+          actualizado_en?: string
+          cliente_id?: string | null
+          cotizacion_borrador_id?: string | null
+          creado_en?: string
+          estado?: string
+          historial?: Json
+          id?: string
+          nombre_contacto?: string
+          telefono?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversaciones_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversaciones_cotizacion_borrador_id_fkey"
+            columns: ["cotizacion_borrador_id"]
+            isOneToOne: false
+            referencedRelation: "cotizaciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -2433,4 +2504,3 @@ export const Constants = {
     },
   },
 } as const
-

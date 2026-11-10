@@ -1,11 +1,18 @@
 /**
- * woocommerce.service.ts — lógica pura para la ingesta de pedidos de tallermac.com.
+ * woocommerce.service.ts — lógica pura para la integración con tallermac.com.
+ *
+ * Cubre las dos direcciones:
+ * - Ingesta de pedidos de tallermac.com hacia el ERP.
+ * - Publicación de productos del ERP hacia tallermac.com.
  *
  * Sin I/O (ni fetch ni Supabase) — testeable directamente, igual que sri.service.ts.
+ * El I/O real de la publicación (las llamadas a la REST API de WooCommerce) vive en
+ * woocommerce-api.service.ts, que usa `construirPayloadProductoWC` de acá.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { WooCommerceLineItemSchema } from '@/lib/validations/pedidos-woocommerce.schema';
 import type { z } from 'zod';
+import type { Producto } from '@/types/metalmac.types';
 
 type WooCommerceLineItem = z.infer<typeof WooCommerceLineItemSchema>;
 
@@ -58,4 +65,60 @@ export function calcularLineasAInsertar(
 ): WooCommerceLineItem[] {
   const idsConvertidos = new Set(lineasYaConvertidas.map((l) => l.wcLineItemId));
   return lineItems.filter((li) => !idsConvertidos.has(li.id));
+}
+
+// ─────────────────────────────────────────────
+// Publicación de productos del ERP → WooCommerce
+// ─────────────────────────────────────────────
+
+/** Cuerpo que acepta `POST`/`PUT /wp-json/wc/v3/products` — solo los campos que seteamos. */
+export interface PayloadProductoWC {
+  name: string;
+  sku: string;
+  description: string;
+  regular_price: string;
+  status: 'publish' | 'draft';
+  manage_stock: false;
+  stock_status: 'instock';
+  images?: { src: string }[];
+}
+
+/**
+ * Construye el payload de WooCommerce a partir de un producto del ERP.
+ *
+ * No depende de si el producto ya existe en WooCommerce (eso lo decide
+ * woocommerce-api.service.ts según `wcProductId`) — siempre arma el mismo cuerpo,
+ * válido tanto para crear como para actualizar.
+ *
+ * `manage_stock: false` + `stock_status: 'instock'` a propósito: la fabricación acá
+ * es a pedido (sin stock de producto terminado en el modelo del ERP), así que un
+ * producto publicado siempre se ofrece como disponible en vez de sincronizar una
+ * cantidad que no existe.
+ *
+ * `status: 'draft'` cuando no hay imagen — evita publicar en la tienda un producto
+ * sin foto; queda como borrador en WooCommerce hasta que alguien le ponga `imagenUrl`
+ * y lo vuelva a publicar.
+ */
+export function construirPayloadProductoWC(producto: Producto): PayloadProductoWC {
+  const tieneImagen = producto.imagenUrl.trim() !== '';
+
+  return {
+    name: producto.nombre,
+    sku: producto.codigo,
+    description: producto.descripcion,
+    regular_price: producto.precioVenta.toFixed(2),
+    status: tieneImagen ? 'publish' : 'draft',
+    manage_stock: false,
+    stock_status: 'instock',
+    ...(tieneImagen ? { images: [{ src: producto.imagenUrl }] } : {}),
+  };
+}
+
+/**
+ * Valida si un producto del ERP puede publicarse en la tienda. Solo productos
+ * terminados y activos — un semielaborado no se vende suelto, y uno inactivo no
+ * debería ofrecerse aunque ya hubiera sido publicado antes.
+ */
+export function puedePublicarseEnTienda(producto: Pick<Producto, 'tipo' | 'activo'>): boolean {
+  return producto.tipo === 'PRODUCTO_TERMINADO' && producto.activo;
 }

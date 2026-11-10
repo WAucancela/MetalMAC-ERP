@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+# Evita que corridas viejas de un mismo PR sigan gastando minutos una vez hay un push nuevo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        # El build evalúa en el servidor módulos que leen NEXT_PUBLIC_SUPABASE_URL/
+        # SUPABASE_SERVICE_ROLE_KEY al importarse (ver lib/supabase/admin.ts) aunque
+        # ninguna página estática le pegue de verdad a Supabase durante el build —
+        # valores dummy alcanzan para que no tire al armar el árbol de rutas. Nunca
+        # usar credenciales reales acá: este build no necesita hablar con Supabase.
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-dummy.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-dummy-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-dummy-service-role-key

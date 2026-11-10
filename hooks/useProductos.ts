@@ -163,3 +163,30 @@ export function useActualizarProducto(id: string) {
     },
   });
 }
+
+export interface PublicacionTienda {
+  wcProductId: number;
+  permalink: string;
+  estado: 'publish' | 'draft';
+}
+
+/** Publica (o re-publica) el producto en tallermac.com vía la REST API de WooCommerce. */
+export function usePublicarEnTienda(id: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<PublicacionTienda> => {
+      const res = await fetch(`/api/productos/${id}/publicar-tienda`, {
+        method: 'POST',
+        headers: authHeaders(token ?? ''),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Error al publicar en la tienda');
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['productos'] });
+      qc.invalidateQueries({ queryKey: ['productos', id] });
+    },
+  });
+}

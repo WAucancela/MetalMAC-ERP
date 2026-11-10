@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "seed": "npx tsx scripts/seed.ts",
     "create-admin": "npx tsx scripts/create-admin.ts",
-    "migrar-clientes": "npx tsx scripts/migrar-clientes.ts"
+    "migrar-clientes": "npx tsx scripts/migrar-clientes.ts",
+    "set-config-sri-pruebas": "npx tsx scripts/set-configuracion-sri-pruebas.ts",
+    "test-emision-sri": "npx tsx scripts/test-emision-sri.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

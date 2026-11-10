@@ -7,13 +7,13 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ChevronLeft, Package, Loader2, Pencil } from 'lucide-react';
+import { ChevronLeft, Package, Loader2, Pencil, Store, ExternalLink } from 'lucide-react';
 
 import { Button }  from '@/components/ui/button';
 import { Badge }   from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BOMTable } from '@/components/produccion/BOMTable';
-import { useProducto, useActualizarProducto } from '@/hooks/useProductos';
+import { useProducto, useActualizarProducto, usePublicarEnTienda } from '@/hooks/useProductos';
 import { useBOM } from '@/hooks/useBOM';
 import { useTiposOperacion } from '@/hooks/useTiposOperacion';
 
@@ -29,6 +29,7 @@ export default function ProductoDetallePage() {
   const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: tiposOperacion = [], isLoading: loadingTiposOperacion } = useTiposOperacion({ activo: true });
   const actualizarProducto = useActualizarProducto(id);
+  const publicarEnTienda = usePublicarEnTienda(id);
 
   if (loadingProducto) {
     return (
@@ -49,6 +50,21 @@ export default function ProductoDetallePage() {
       toast.success(producto.activo ? 'Producto desactivado' : 'Producto activado');
     } catch (e: any) {
       toast.error(e.message ?? 'Error al actualizar el producto');
+    }
+  }
+
+  const puedePublicarse = producto.tipo === 'PRODUCTO_TERMINADO' && producto.activo;
+
+  async function publicarEnTiendaOnClick() {
+    try {
+      const resultado = await publicarEnTienda.mutateAsync();
+      toast.success(
+        resultado.estado === 'draft'
+          ? 'Publicado como borrador — agregale una imagen y volvé a publicar para que salga visible'
+          : 'Publicado en tallermac.com',
+      );
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al publicar en la tienda');
     }
   }
 
@@ -99,6 +115,12 @@ export default function ProductoDetallePage() {
           {producto.descripcion && (
             <p className="text-sm mt-2">{producto.descripcion}</p>
           )}
+          {producto.wcProductId && (
+            <p className="text-xs text-muted-foreground mt-2">
+              En tallermac.com (id {producto.wcProductId})
+              {producto.wcSincronizadoEn && ` · última publicación ${new Date(producto.wcSincronizadoEn).toLocaleString('es-EC')}`}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
@@ -111,6 +133,26 @@ export default function ProductoDetallePage() {
               <Pencil className="mr-2 h-4 w-4" /> Editar
             </Link>
           </Button>
+          {puedePublicarse && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={publicarEnTienda.isPending}
+              onClick={publicarEnTiendaOnClick}
+            >
+              {publicarEnTienda.isPending
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Store className="mr-2 h-4 w-4" />}
+              {producto.wcProductId ? 'Actualizar en Tienda' : 'Publicar en Tienda'}
+            </Button>
+          )}
+          {producto.wcProductId && publicarEnTienda.data?.permalink && (
+            <Button asChild variant="ghost" size="sm">
+              <a href={publicarEnTienda.data.permalink} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

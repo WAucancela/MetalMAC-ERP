@@ -10,7 +10,12 @@ import type {
   Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
   FacturaVenta, LineaFacturaVenta, Operario, TipoOperacion, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
   CuentaBancaria, MovimientoBancario, CajaMovimiento, Cotizacion, LineaCotizacion, Cliente, InteraccionCliente,
+  ConversacionWhatsApp, ConversacionWhatsAppResumen,
 } from '@/types/metalmac.types';
+// Módulo sin I/O a propósito (no el de lib/services/whatsapp-agente.service.ts, que
+// instancia el cliente de Anthropic a nivel de módulo) — mappers.ts lo importa casi
+// cualquier API route, así que no puede arrastrar esa dependencia pesada.
+import { interpretarHistorial, ultimoMensajeDeHistorial } from '@/lib/services/whatsapp-historial';
 
 type MaterialRow = Database['public']['Tables']['materiales']['Row'];
 type StockRow = Database['public']['Tables']['stock']['Row'];
@@ -85,6 +90,9 @@ export function mapProductoRow(row: ProductoRow): Producto {
     unidadVenta: row.unidad_venta,
     precioVenta: Number(row.precio_venta),
     activo: row.activo,
+    imagenUrl: row.imagen_url,
+    wcProductId: row.wc_product_id,
+    wcSincronizadoEn: row.wc_sincronizado_en,
   };
 }
 
@@ -475,5 +483,30 @@ export function mapInteraccionRow(row: InteraccionRow): InteraccionCliente {
     descripcion: row.descripcion,
     creadoPor: row.creado_por,
     creadoEn: row.creado_en,
+  };
+}
+
+type WhatsAppConversacionRow = Database['public']['Tables']['whatsapp_conversaciones']['Row'];
+
+export function mapConversacionWhatsAppResumenRow(row: WhatsAppConversacionRow): ConversacionWhatsAppResumen {
+  const historial = (row.historial as unknown as Parameters<typeof ultimoMensajeDeHistorial>[0]) ?? [];
+  return {
+    id: row.id,
+    telefono: row.telefono,
+    nombreContacto: row.nombre_contacto,
+    clienteId: row.cliente_id,
+    cotizacionBorradorId: row.cotizacion_borrador_id,
+    estado: row.estado as ConversacionWhatsAppResumen['estado'],
+    ultimoMensaje: ultimoMensajeDeHistorial(historial),
+    creadoEn: row.creado_en,
+    actualizadoEn: row.actualizado_en,
+  };
+}
+
+export function mapConversacionWhatsAppRow(row: WhatsAppConversacionRow): ConversacionWhatsApp {
+  const historial = (row.historial as unknown as Parameters<typeof interpretarHistorial>[0]) ?? [];
+  return {
+    ...mapConversacionWhatsAppResumenRow(row),
+    mensajes: interpretarHistorial(historial),
   };
 }

@@ -12,7 +12,10 @@ import {
   verificarFirmaWebhook,
   resolverProductoPorSku,
   calcularLineasAInsertar,
+  construirPayloadProductoWC,
+  puedePublicarseEnTienda,
 } from '../lib/services/woocommerce.service';
+import type { Producto } from '../types/metalmac.types';
 
 // ─────────────────────────────────────────────
 // verificarFirmaWebhook
@@ -108,5 +111,68 @@ describe('calcularLineasAInsertar', () => {
       { wcLineItemId: 2 },
     ]);
     expect(resultado).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────
+// construirPayloadProductoWC / puedePublicarseEnTienda
+// ─────────────────────────────────────────────
+
+describe('construirPayloadProductoWC', () => {
+  const productoBase: Producto = {
+    id: 'p1',
+    codigo: 'MAC-001',
+    nombre: 'Poste metálico 6m',
+    descripcion: 'Poste galvanizado',
+    tipo: 'PRODUCTO_TERMINADO',
+    unidadVenta: 'UNIDAD',
+    precioVenta: 125.5,
+    activo: true,
+    imagenUrl: '',
+    wcProductId: null,
+    wcSincronizadoEn: null,
+  };
+
+  it('mapea los campos básicos del producto', () => {
+    const payload = construirPayloadProductoWC(productoBase);
+    expect(payload.name).toBe('Poste metálico 6m');
+    expect(payload.sku).toBe('MAC-001');
+    expect(payload.description).toBe('Poste galvanizado');
+    expect(payload.regular_price).toBe('125.50');
+  });
+
+  it('sin stock de producto terminado en el ERP: siempre "disponible", sin manejar cantidad', () => {
+    const payload = construirPayloadProductoWC(productoBase);
+    expect(payload.manage_stock).toBe(false);
+    expect(payload.stock_status).toBe('instock');
+  });
+
+  it('publica como borrador si no hay imagen', () => {
+    const payload = construirPayloadProductoWC(productoBase);
+    expect(payload.status).toBe('draft');
+    expect(payload.images).toBeUndefined();
+  });
+
+  it('publica visible y manda la imagen si hay imagenUrl', () => {
+    const payload = construirPayloadProductoWC({
+      ...productoBase,
+      imagenUrl: 'https://tallermac.com/foto.jpg',
+    });
+    expect(payload.status).toBe('publish');
+    expect(payload.images).toEqual([{ src: 'https://tallermac.com/foto.jpg' }]);
+  });
+
+  describe('puedePublicarseEnTienda', () => {
+    it('permite un producto terminado y activo', () => {
+      expect(puedePublicarseEnTienda({ tipo: 'PRODUCTO_TERMINADO', activo: true })).toBe(true);
+    });
+
+    it('rechaza un semielaborado aunque esté activo', () => {
+      expect(puedePublicarseEnTienda({ tipo: 'SEMIELABORADO', activo: true })).toBe(false);
+    });
+
+    it('rechaza un producto terminado inactivo', () => {
+      expect(puedePublicarseEnTienda({ tipo: 'PRODUCTO_TERMINADO', activo: false })).toBe(false);
+    });
   });
 });
