@@ -2,9 +2,8 @@
  * whatsapp.service.ts — integración con WhatsApp Cloud API (Meta), para que
  * app/api/whatsapp/webhook pueda recibir mensajes de clientes y responderles.
  *
- * `extraerMensajeTexto` es lógica pura (sin I/O) — testeable directamente,
- * igual que woocommerce.service.ts. `enviarMensajeTexto`/`marcarComoLeido`
- * sí hacen I/O (fetch al Graph API de Meta).
+ * `extraerMensajeTexto` es lógica pura (sin I/O) — testeable directamente.
+ * `enviarMensajeTexto`/`marcarComoLeido` sí hacen I/O (fetch al Graph API de Meta).
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { WhatsAppWebhookPayload } from '@/lib/validations/whatsapp.schema';
@@ -20,9 +19,8 @@ export interface MensajeEntrante {
 
 /**
  * Verifica la firma `X-Hub-Signature-256: sha256=<hex>` (HMAC-SHA256 en hex
- * sobre el body crudo, con el App Secret de Meta) — a diferencia de la firma
- * de WooCommerce, que es base64. Compara con `timingSafeEqual` para no
- * filtrar el secreto por temporización.
+ * sobre el body crudo, con el App Secret de Meta). Compara con
+ * `timingSafeEqual` para no filtrar el secreto por temporización.
  */
 export function verificarFirmaWebhook(
   rawBody: string,

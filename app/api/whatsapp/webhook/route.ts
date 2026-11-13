@@ -3,9 +3,9 @@
  *      configurar el webhook en el dashboard de WhatsApp Cloud API.
  * POST /api/whatsapp/webhook — recibe mensajes entrantes de clientes.
  *
- * Igual que app/api/webhooks/woocommerce: la llamada viene del servidor de
- * Meta, no de un usuario logueado, así que se autentica con la firma HMAC
- * del webhook (WHATSAPP_APP_SECRET) en vez de un Bearer JWT. middleware.ts
+ * La llamada viene del servidor de Meta, no de un usuario logueado, así que
+ * se autentica con la firma HMAC del webhook (WHATSAPP_APP_SECRET) en vez de
+ * un Bearer JWT. middleware.ts
  * ya deja pasar todo /api/* sin sesión de Supabase.
  *
  * Siempre responde 200 a un payload válido (incluso si no había texto que

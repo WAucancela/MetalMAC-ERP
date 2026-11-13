@@ -1,7 +1,7 @@
 /**
  * reportes.service.ts — agregaciones puras para app/api/reportes/* que
  * necesitan algo más que un SELECT directo. Sin I/O — testeable directo,
- * igual que woocommerce.service.ts / whatsapp-historial.ts.
+ * igual que whatsapp-historial.ts.
  */
 
 export type EstadoCotizacionReporte = 'BORRADOR' | 'ENVIADA' | 'APROBADA' | 'RECHAZADA' | 'VENCIDA';

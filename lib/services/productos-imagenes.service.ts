@@ -1,10 +1,10 @@
 /**
  * productos-imagenes.service.ts — subida de fotos de producto a Supabase Storage
- * (bucket público `productos-imagenes`) para usarlas al publicar en WooCommerce.
+ * (bucket público `productos-imagenes`) para mostrarlas en el sitio público
+ * (tallermac-web).
  *
  * Mismo patrón que certificado.service.ts (supabaseAdmin.storage), pero acá el
- * bucket es público: WooCommerce necesita descargar la imagen desde su URL cuando
- * el ERP publica el producto.
+ * bucket es público: tallermac-web referencia la imagen directo por su URL.
  */
 import { supabaseAdmin } from '@/lib/supabase/admin';
 

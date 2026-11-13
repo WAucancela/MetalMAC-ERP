@@ -149,84 +149,32 @@ O simplemente haz push al branch `main` si conectaste el repositorio desde verce
 
 ---
 
-## Integración WooCommerce (tallermac.com)
+## Sitio público (tallermac-web)
 
-Los pedidos hechos en tallermac.com llegan al ERP vía webhook y quedan en una bandeja de
-revisión (`/pedidos-woocommerce`) — nunca crean una Orden de Producción automáticamente.
-El staff (GERENTE/PRODUCCION) decide manualmente qué línea de qué pedido se convierte en
-qué orden.
+tallermac.com ya no corre en WordPress/WooCommerce — es un proyecto Next.js aparte
+(`tallermac-web`) que lee y escribe directo contra esta misma base de Supabase. No hay
+webhook ni sincronización intermediaria: el sitio público consulta `productos_tienda_publica`
+para el catálogo, e inserta directo en `solicitudes_contacto` (formulario de contacto) y
+`pedidos_tienda` (carrito) — ambas con RLS que solo permite `INSERT` al rol `anon`.
 
-La recepción de pedidos (webhook) solo necesita el secreto del webhook. La **publicación
-de productos del ERP hacia la tienda** (sentido contrario — ver más abajo) sí necesita
-Consumer Key/Secret de la REST API.
+### Publicar un producto en el sitio
 
-### Configurar el webhook en WordPress
+El botón **Publicar en Sitio** (en el detalle de un producto, `/productos/[id]`) solo
+aparece para productos `PRODUCTO_TERMINADO` y activos; un semielaborado no se vende suelto.
+Alternarlo escribe `productos.publicado_sitio`, que junto con `activo = true` es la única
+condición de la vista `productos_tienda_publica` que lee tallermac-web. Sin ninguna imagen
+(`productos.imagen_urls` vacío) el producto de todas formas queda visible, solo que sin
+foto — subí una desde Editar → Imágenes (se guarda en el bucket público `productos-imagenes`
+de Supabase Storage) o pegá la URL de una ya publicada en otro lado.
 
-Una vez el ERP esté desplegado en Vercel:
+### Leads y pedidos del sitio
 
-1. WordPress Admin → **WooCommerce → Ajustes → Avanzado → Webhooks → Agregar webhook**
-2. Crea dos webhooks (uno por cada evento):
-   - **Nombre**: `MetalMAC ERP — Pedido creado` / **Tema**: `Pedido creado`
-   - **Nombre**: `MetalMAC ERP — Pedido actualizado` / **Tema**: `Pedido actualizado`
-3. En ambos:
-   - **URL de entrega**: `https://tu-proyecto.vercel.app/api/webhooks/woocommerce`
-   - **Secreto**: genera una cadena aleatoria larga (ej. `openssl rand -hex 32`) y usa
-     **el mismo valor en los dos webhooks**
-   - **Estado**: Activo
-4. Copia ese secreto como `WOOCOMMERCE_WEBHOOK_SECRET` en Vercel (Settings → Environment
-   Variables) y vuelve a desplegar para que tome efecto.
+- `/solicitudes-contacto` — bandeja de leads del formulario de contacto (GERENTE/PRODUCCION).
+- `/pedidos-tienda` — bandeja de pedidos del carrito (GERENTE/PRODUCCION).
 
-### Verificar la conexión
-
-1. Crea un pedido de prueba en tallermac.com (o reenvía la entrega desde WooCommerce →
-   Webhooks → el webhook → pestaña "Entregas" → **Reenviar**)
-2. Entra a `/pedidos-woocommerce` en el ERP → el pedido debe aparecer como **Pendiente**
-3. Abre el pedido, revisa sus líneas y usa **Convertir a Orden de Producción** en la
-   línea que corresponda — si el SKU de WooCommerce coincide con `productos.codigo`, el
-   producto viene pre-seleccionado
-
-### Mapeo de SKU
-
-Cada línea intenta resolverse automáticamente contra `productos.codigo` por coincidencia
-exacta (sin distinguir mayúsculas). Si no hay match, la línea llega sin producto
-pre-seleccionado y el staff lo elige a mano en la bandeja de revisión — asegúrate de que
-los SKU en tallermac.com coincidan con los códigos de producto del ERP para aprovechar el
-auto-match.
-
-### Publicar productos del ERP en la tienda
-
-Sentido contrario al de arriba: el producto se crea/edita en el ERP y desde ahí se publica
-en tallermac.com — nunca al revés, no hay sincronización automática ni polling. El botón
-**Publicar en Tienda** (en el detalle de un producto, `/productos/[id]`) solo aparece para
-productos `PRODUCTO_TERMINADO` y activos; un semielaborado no se vende suelto.
-
-**Generar las credenciales** (una sola vez):
-
-1. WordPress Admin → **WooCommerce → Ajustes → Avanzado → API REST → Agregar clave**
-2. **Descripción**: `MetalMAC ERP — Publicación de productos` · **Permisos**: Lectura/Escritura
-3. Copia el **Consumer Key** y **Consumer Secret** que te muestra (una sola vez — si los
-   perdés hay que generar otro par)
-4. En Vercel (Settings → Environment Variables) agrega:
-   - `WOOCOMMERCE_API_URL` → `https://tallermac.com` (sin slash final)
-   - `WOOCOMMERCE_CONSUMER_KEY`
-   - `WOOCOMMERCE_CONSUMER_SECRET`
-5. Vuelve a desplegar para que tomen efecto
-
-**Cómo funciona:**
-
-- Sin ninguna imagen (`productos.imagen_urls` vacío) el producto se publica como
-  **borrador** en WooCommerce — existe pero no es visible en la tienda — para no mostrar
-  una ficha sin foto. En Editar → Tienda (tallermac.com) podés subir una foto desde tu
-  computadora (se guarda en el bucket público `productos-imagenes` de Supabase Storage)
-  o pegar la URL de una imagen que ya esté publicada en otro lado; admite varias, la
-  primera queda como foto principal. Después volvé a publicar.
-- `productos.wc_product_id` enlaza el producto del ERP con el de WooCommerce: la primera
-  publicación crea el producto y guarda ese id; las siguientes actualizan el mismo producto
-  en vez de crear uno duplicado.
-- Sin manejo de stock: la fabricación es a pedido, así que todo producto publicado se marca
-  "disponible" en WooCommerce en vez de sincronizar una cantidad que no existe en el ERP.
-- Categoría e imágenes adicionales se asignan a mano en WooCommerce después de la primera
-  publicación — no están cubiertas por esta integración todavía.
+Ambos disparan una confirmación instantánea por WhatsApp al cliente desde tallermac-web
+mismo, y un cron en este ERP (`seguimiento-leads-tienda`, cada 4 horas) avisa por email
+interno si un lead/pedido queda sin atender más de 4 horas.
 
 ---
 
@@ -245,12 +193,10 @@ Asignar con: `npm run create-admin -- email@empresa.com ROL`
 
 ## Rate limiting (Vercel Firewall)
 
-El ERP no tiene ningún rate limiting propio — dos endpoints son alcanzables sin login
-y valen la pena proteger a nivel de plataforma (gratis en cualquier plan, no
+El ERP no tiene ningún rate limiting propio — un endpoint es alcanzable sin login
+y vale la pena proteger a nivel de plataforma (gratis en cualquier plan, no
 consume cuota de la función):
 
-- `POST /api/webhooks/woocommerce` — autenticado por firma HMAC, no por sesión;
-  cualquiera puede mandarle tráfico e intentar agotar la cuota de funciones.
 - `GET /api/clientes/consultar-identificacion` — pega contra un endpoint no
   oficial del SRI (`srienlinea.sri.gob.ec`); un abuso acá puede hacer que el SRI
   nos banee la IP de salida de Vercel para todo el proyecto.
@@ -260,15 +206,6 @@ quedan en borrador hasta `vercel firewall publish --yes` — revisar con
 `vercel firewall diff` antes de publicar.
 
 ```bash
-vercel firewall rules add "Rate limit webhook WooCommerce" \
-  --condition '{"type":"path","op":"eq","value":"/api/webhooks/woocommerce"}' \
-  --action rate_limit \
-  --rate-limit-window 60 \
-  --rate-limit-requests 30 \
-  --rate-limit-keys ip \
-  --rate-limit-action deny \
-  --yes
-
 vercel firewall rules add "Rate limit consulta SRI" \
   --condition '{"type":"path","op":"eq","value":"/api/clientes/consultar-identificacion"}' \
   --action rate_limit \
@@ -282,9 +219,9 @@ vercel firewall diff
 vercel firewall publish --yes
 ```
 
-Los límites de arriba son un punto de partida generoso (tráfico legítimo real de
-un taller nunca se acerca a 30 webhooks/min ni 20 consultas/min desde una sola
-IP) — si el dashboard de Firewall muestra falsos positivos, subirlos.
+El límite de arriba es un punto de partida generoso (tráfico legítimo real de
+un taller nunca se acerca a 20 consultas/min desde una sola IP) — si el dashboard
+de Firewall muestra falsos positivos, subirlo.
 
 ---
 
@@ -349,8 +286,8 @@ facturas_venta             → cabecera de venta
 factura_venta_lineas       → líneas de factura de venta
 perfiles                   → espejo legible de app_metadata.rol (Auth)
 contadores_anuales         → secuencias OP-YYYY-NNNN, PRY-YYYY-NNNN (siguiente_secuencia_anual)
-pedidos_woocommerce        → bandeja de revisión, cabecera de pedidos de tallermac.com
-pedido_woocommerce_lineas  → líneas del pedido; producto_id resuelto por SKU, orden_produccion_id al convertir
+solicitudes_contacto       → leads del formulario de contacto de tallermac-web
+pedidos_tienda             → pedidos del carrito de tallermac-web
 ```
 
 Todas las tablas usan Row Level Security (`supabase/migrations/*_rls_policies.sql`); las mutaciones con reglas de negocio (stock, órdenes, proyectos, contadores) pasan por funciones RPC `SECURITY DEFINER` en vez de updates directos desde la API.

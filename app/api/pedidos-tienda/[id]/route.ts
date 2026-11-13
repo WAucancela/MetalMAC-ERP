@@ -1,20 +1,14 @@
 /**
- * GET   /api/pedidos-woocommerce/[id] — detalle del pedido con sus líneas
- * PATCH /api/pedidos-woocommerce/[id] — marcar EN_REVISION / CONVERTIDO / RECHAZADO
- *
- * La transición a CONVERTIDO normalmente la dispara el endpoint de conversión de línea
- * (.../lineas/[lineaId]/convertir) cuando la última línea queda convertida — este PATCH
- * también la permite manualmente por si el staff quiere cerrar un pedido sin convertir
- * todas las líneas (ej. una línea no aplica a producción).
+ * GET   /api/pedidos-tienda/[id] — detalle del pedido con sus líneas
+ * PATCH /api/pedidos-tienda/[id] — marcar CONTACTADO / PAGADO / ENTREGADO / CANCELADO
  */
 
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getAuthenticatedUser } from '@/app/api/_helpers';
-import { ActualizarEstadoRevisionSchema } from '@/lib/validations/pedidos-woocommerce.schema';
-import { mapPedidoWooCommerceRow } from '@/lib/services/mappers';
+import { ActualizarEstadoPedidoTiendaSchema } from '@/lib/validations/pedidos-tienda.schema';
+import { mapPedidoTiendaRow } from '@/lib/services/mappers';
 
-// Nunca cachear: cada respuesta depende del usuario autenticado y de datos que cambian por request.
 export const dynamic = 'force-dynamic';
 
 interface RouteParams { params: { id: string } }
@@ -30,16 +24,16 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   try {
     const { data: pedido, error } = await supabaseAdmin
-      .from('pedidos_woocommerce')
-      .select('*, pedido_woocommerce_lineas(*)')
+      .from('pedidos_tienda')
+      .select('*, pedido_tienda_lineas(*)')
       .eq('id', params.id)
       .maybeSingle();
     if (error) throw error;
     if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
 
-    return NextResponse.json({ ok: true, data: mapPedidoWooCommerceRow(pedido, pedido.pedido_woocommerce_lineas) });
+    return NextResponse.json({ ok: true, data: mapPedidoTiendaRow(pedido, pedido.pedido_tienda_lineas) });
   } catch (e) {
-    console.error(`[GET /api/pedidos-woocommerce/${params.id}]`, e);
+    console.error(`[GET /api/pedidos-tienda/${params.id}]`, e);
     return NextResponse.json({ error: 'Error al obtener pedido' }, { status: 500 });
   }
 }
@@ -52,36 +46,29 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
 
-  const parsed = ActualizarEstadoRevisionSchema.safeParse(body);
+  const parsed = ActualizarEstadoPedidoTiendaSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Datos inválidos', detalles: parsed.error.flatten() }, { status: 400 });
 
-  const { estadoRevision, notas } = parsed.data;
+  const { estado, notas } = parsed.data;
 
   try {
-    const { data: pedido, error: pedidoError } = await supabaseAdmin
-      .from('pedidos_woocommerce')
-      .select('estado_revision, procesado_en')
+    const { data: pedido, error: findError } = await supabaseAdmin
+      .from('pedidos_tienda')
+      .select('id')
       .eq('id', params.id)
       .maybeSingle();
-    if (pedidoError) throw pedidoError;
+    if (findError) throw findError;
     if (!pedido) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 });
 
     const { error: updateError } = await supabaseAdmin
-      .from('pedidos_woocommerce')
-      .update({
-        estado_revision: estadoRevision,
-        ...(notas !== undefined ? { notas } : {}),
-        // Registrar quién/cuándo salió de PENDIENTE por primera vez.
-        ...(pedido.procesado_en === null
-          ? { procesado_en: new Date().toISOString(), procesado_por: user.uid }
-          : {}),
-      })
+      .from('pedidos_tienda')
+      .update({ estado, ...(notas !== undefined ? { notas } : {}) })
       .eq('id', params.id);
     if (updateError) throw updateError;
 
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error(`[PATCH /api/pedidos-woocommerce/${params.id}]`, e);
+    console.error(`[PATCH /api/pedidos-tienda/${params.id}]`, e);
     return NextResponse.json({ error: 'Error al actualizar pedido' }, { status: 500 });
   }
 }

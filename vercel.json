@@ -23,6 +23,7 @@
     }
   ],
   "crons": [
-    { "path": "/api/cron/seguimiento-cotizaciones", "schedule": "0 13 * * *" }
+    { "path": "/api/cron/seguimiento-cotizaciones", "schedule": "0 13 * * *" },
+    { "path": "/api/cron/seguimiento-leads-tienda", "schedule": "0 */4 * * *" }
   ]
 }

@@ -7,13 +7,13 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ChevronLeft, Package, Loader2, Pencil, Store, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Package, Loader2, Pencil, Store } from 'lucide-react';
 
 import { Button }  from '@/components/ui/button';
 import { Badge }   from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BOMTable } from '@/components/produccion/BOMTable';
-import { useProducto, useActualizarProducto, usePublicarEnTienda } from '@/hooks/useProductos';
+import { useProducto, useActualizarProducto } from '@/hooks/useProductos';
 import { useBOM } from '@/hooks/useBOM';
 import { useTiposOperacion } from '@/hooks/useTiposOperacion';
 
@@ -29,7 +29,6 @@ export default function ProductoDetallePage() {
   const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
   const { data: tiposOperacion = [], isLoading: loadingTiposOperacion } = useTiposOperacion({ activo: true });
   const actualizarProducto = useActualizarProducto(id);
-  const publicarEnTienda = usePublicarEnTienda(id);
 
   if (loadingProducto) {
     return (
@@ -55,16 +54,12 @@ export default function ProductoDetallePage() {
 
   const puedePublicarse = producto.tipo === 'PRODUCTO_TERMINADO' && producto.activo;
 
-  async function publicarEnTiendaOnClick() {
+  async function alternarPublicadoSitio() {
     try {
-      const resultado = await publicarEnTienda.mutateAsync();
-      toast.success(
-        resultado.estado === 'draft'
-          ? 'Publicado como borrador — agregale una imagen y volvé a publicar para que salga visible'
-          : 'Publicado en tallermac.com',
-      );
+      await actualizarProducto.mutateAsync({ publicadoSitio: !producto.publicadoSitio });
+      toast.success(producto.publicadoSitio ? 'Retirado del sitio público' : 'Publicado en el sitio público');
     } catch (e: any) {
-      toast.error(e.message ?? 'Error al publicar en la tienda');
+      toast.error(e.message ?? 'Error al actualizar la publicación');
     }
   }
 
@@ -115,11 +110,8 @@ export default function ProductoDetallePage() {
           {producto.descripcion && (
             <p className="text-sm mt-2">{producto.descripcion}</p>
           )}
-          {producto.wcProductId && (
-            <p className="text-xs text-muted-foreground mt-2">
-              En tallermac.com (id {producto.wcProductId})
-              {producto.wcSincronizadoEn && ` · última publicación ${new Date(producto.wcSincronizadoEn).toLocaleString('es-EC')}`}
-            </p>
+          {producto.publicadoSitio && (
+            <p className="text-xs text-muted-foreground mt-2">Visible en el sitio público (tallermac-web)</p>
           )}
         </div>
         <div className="flex gap-2">
@@ -137,20 +129,13 @@ export default function ProductoDetallePage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={publicarEnTienda.isPending}
-              onClick={publicarEnTiendaOnClick}
+              disabled={actualizarProducto.isPending}
+              onClick={alternarPublicadoSitio}
             >
-              {publicarEnTienda.isPending
+              {actualizarProducto.isPending
                 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 : <Store className="mr-2 h-4 w-4" />}
-              {producto.wcProductId ? 'Actualizar en Tienda' : 'Publicar en Tienda'}
-            </Button>
-          )}
-          {producto.wcProductId && publicarEnTienda.data?.permalink && (
-            <Button asChild variant="ghost" size="sm">
-              <a href={publicarEnTienda.data.permalink} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" />
-              </a>
+              {producto.publicadoSitio ? 'Retirar del Sitio' : 'Publicar en Sitio'}
             </Button>
           )}
           <Button

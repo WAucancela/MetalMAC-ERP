@@ -8,11 +8,13 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Package, Truck, Factory, FolderOpen, ShoppingCart, Calculator,
+  Package, Truck, Factory, FolderOpen, Calculator,
   LayoutDashboard, ChevronRight, Boxes, LogOut, Settings, Sun, Moon, Users, FileSpreadsheet, MessageCircle,
+  Inbox, Store,
 } from 'lucide-react';
 import { useAlertasStockBajo } from '@/hooks/useStock';
-import { usePedidosWooCommerce } from '@/hooks/usePedidosWooCommerce';
+import { useSolicitudesContacto } from '@/hooks/useSolicitudesContacto';
+import { usePedidosTienda } from '@/hooks/usePedidosTienda';
 import { useAuth } from '@/hooks/useAuth';
 
 interface NavItem {
@@ -28,7 +30,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/inventario',                   label: 'Inventario',       icon: Package },
   { href: '/productos',                    label: 'Productos',        icon: Boxes },
   { href: '/produccion',                   label: 'Producción',       icon: Factory },
-  { href: '/pedidos-woocommerce',          label: 'Pedidos Web',      icon: ShoppingCart, roles: ['GERENTE', 'PRODUCCION'] },
+  { href: '/solicitudes-contacto',         label: 'Solicitudes',      icon: Inbox, roles: ['GERENTE', 'PRODUCCION'] },
+  { href: '/pedidos-tienda',               label: 'Pedidos Tienda',   icon: Store, roles: ['GERENTE', 'PRODUCCION'] },
   { href: '/clientes',                     label: 'Clientes',         icon: Users },
   { href: '/whatsapp',                     label: 'WhatsApp',         icon: MessageCircle },
   { href: '/proveedores',                  label: 'Proveedores',      icon: Truck },
@@ -66,11 +69,15 @@ export function Sidebar() {
   const router   = useRouter();
   const { data: alertas } = useAlertasStockBajo();
   const { user, rol, signOut } = useAuth();
-  // Sólo GERENTE/PRODUCCION pueden ver /pedidos-woocommerce (mismo check que la API) —
+  // Sólo GERENTE/PRODUCCION pueden ver estas bandejas (mismo check que las APIs) —
   // sin esto, cualquier otro rol dispararía un 403 en cada carga de página.
   const puedeVerPedidos = rol === 'GERENTE' || rol === 'PRODUCCION';
-  const { data: pedidosPendientes } = usePedidosWooCommerce({
-    estadoRevision: 'PENDIENTE',
+  const { data: solicitudesNuevas } = useSolicitudesContacto({
+    estado: 'NUEVA',
+    enabled: puedeVerPedidos,
+  });
+  const { data: pedidosTiendaPendientes } = usePedidosTienda({
+    estado: 'PENDIENTE_CONTACTO',
     enabled: puedeVerPedidos,
   });
 
@@ -100,8 +107,10 @@ export function Sidebar() {
           const badge =
             href === '/inventario' && alertas && alertas.length > 0
               ? alertas.length
-              : href === '/pedidos-woocommerce' && pedidosPendientes && pedidosPendientes.length > 0
-              ? pedidosPendientes.length
+              : href === '/solicitudes-contacto' && solicitudesNuevas && solicitudesNuevas.length > 0
+              ? solicitudesNuevas.length
+              : href === '/pedidos-tienda' && pedidosTiendaPendientes && pedidosTiendaPendientes.length > 0
+              ? pedidosTiendaPendientes.length
               : null;
 
           return (

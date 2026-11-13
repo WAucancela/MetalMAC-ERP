@@ -7,10 +7,10 @@
 import type { Database } from '@/types/supabase.types';
 import type {
   Material, Stock, MovimientoInventario, Producto, Proveedor, OrdenProduccion, MaterialReservado, Proyecto,
-  Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion, PedidoWooCommerce, LineaPedidoWooCommerce,
+  Gasto, CentroCosto, FacturaCompra, LineaFacturaCompra, Retencion,
   FacturaVenta, LineaFacturaVenta, Operario, TipoOperacion, OrdenOperacion, PagoFacturaCompra, CobroFacturaVenta,
   CuentaBancaria, MovimientoBancario, CajaMovimiento, Cotizacion, LineaCotizacion, Cliente, InteraccionCliente,
-  ConversacionWhatsApp, ConversacionWhatsAppResumen,
+  ConversacionWhatsApp, ConversacionWhatsAppResumen, SolicitudContacto, PedidoTienda, LineaPedidoTienda,
 } from '@/types/metalmac.types';
 // Módulo sin I/O a propósito (no el de lib/services/whatsapp-agente.service.ts, que
 // instancia el cliente de Anthropic a nivel de módulo) — mappers.ts lo importa casi
@@ -38,8 +38,9 @@ type CentroCostoRow = Database['public']['Tables']['centros_costo']['Row'];
 type FacturaCompraRow = Database['public']['Tables']['facturas_compra']['Row'];
 type FacturaCompraLineaRow = Database['public']['Tables']['factura_compra_lineas']['Row'];
 type FacturaCompraRetencionRow = Database['public']['Tables']['factura_compra_retenciones']['Row'];
-type PedidoWooCommerceRow = Database['public']['Tables']['pedidos_woocommerce']['Row'];
-type LineaPedidoWooCommerceRow = Database['public']['Tables']['pedido_woocommerce_lineas']['Row'];
+type SolicitudContactoRow = Database['public']['Tables']['solicitudes_contacto']['Row'];
+type PedidoTiendaRow = Database['public']['Tables']['pedidos_tienda']['Row'];
+type LineaPedidoTiendaRow = Database['public']['Tables']['pedido_tienda_lineas']['Row'];
 type FacturaVentaRow = Database['public']['Tables']['facturas_venta']['Row'];
 type FacturaVentaLineaRow = Database['public']['Tables']['factura_venta_lineas']['Row'];
 type PagoFacturaCompraRow = Database['public']['Tables']['pagos_factura_compra']['Row'];
@@ -91,8 +92,7 @@ export function mapProductoRow(row: ProductoRow): Producto {
     precioVenta: Number(row.precio_venta),
     activo: row.activo,
     imagenUrls: row.imagen_urls,
-    wcProductId: row.wc_product_id,
-    wcSincronizadoEn: row.wc_sincronizado_en,
+    publicadoSitio: row.publicado_sitio,
   };
 }
 
@@ -322,38 +322,46 @@ export function mapMovimientoRow(row: MovimientoRow): MovimientoInventario {
   };
 }
 
-export function mapLineaPedidoWooCommerceRow(row: LineaPedidoWooCommerceRow): LineaPedidoWooCommerce {
+export function mapSolicitudContactoRow(row: SolicitudContactoRow): SolicitudContacto {
   return {
     id: row.id,
-    pedidoId: row.pedido_id,
-    wcLineItemId: row.wc_line_item_id,
-    sku: row.sku,
-    nombreProducto: row.nombre_producto,
-    cantidad: Number(row.cantidad),
-    productoId: row.producto_id,
-    ordenProduccionId: row.orden_produccion_id,
+    nombre: row.nombre,
+    email: row.email,
+    telefono: row.telefono,
+    servicioInteres: row.servicio_interes,
+    descripcion: row.descripcion,
+    estado: row.estado,
+    origen: row.origen,
+    creadoEn: row.creado_en,
   };
 }
 
-export function mapPedidoWooCommerceRow(
-  row: PedidoWooCommerceRow,
-  lineas: LineaPedidoWooCommerceRow[] = [],
-): PedidoWooCommerce {
+export function mapLineaPedidoTiendaRow(row: LineaPedidoTiendaRow): LineaPedidoTienda {
   return {
     id: row.id,
-    wcOrderId: row.wc_order_id,
-    wcStatus: row.wc_status,
-    numeroPedido: row.numero_pedido,
+    pedidoId: row.pedido_id,
+    productoId: row.producto_id,
+    descripcion: row.descripcion,
+    cantidad: Number(row.cantidad),
+    precioUnitario: Number(row.precio_unitario),
+    subtotal: Number(row.subtotal),
+  };
+}
+
+export function mapPedidoTiendaRow(
+  row: PedidoTiendaRow,
+  lineas: LineaPedidoTiendaRow[] = [],
+): PedidoTienda {
+  return {
+    id: row.id,
     clienteNombre: row.cliente_nombre,
     clienteEmail: row.cliente_email,
+    clienteTelefono: row.cliente_telefono,
     total: Number(row.total),
-    moneda: row.moneda,
-    estadoRevision: row.estado_revision,
+    estado: row.estado,
     notas: row.notas,
-    lineas: lineas.map(mapLineaPedidoWooCommerceRow),
-    recibidoEn: row.recibido_en,
-    procesadoEn: row.procesado_en,
-    procesadoPor: row.procesado_por,
+    lineas: lineas.map(mapLineaPedidoTiendaRow),
+    creadoEn: row.creado_en,
   };
 }
 
