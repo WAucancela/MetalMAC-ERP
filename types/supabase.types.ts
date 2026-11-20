@@ -772,6 +772,20 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
+                },"servicios": {
+                  Row: {
+                    "activo": boolean,"codigo": string,"creado_en": string,"descripcion": string,"detalle": NonNullable<Json>,"id": string,"nombre": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "activo"?: boolean,"codigo": string,"creado_en"?: string,"descripcion": string,"detalle"?: NonNullable<Json>,"id"?: string,"nombre": string
+                  }
+                  Update: {
+                    "activo"?: boolean,"codigo"?: string,"creado_en"?: string,"descripcion"?: string,"detalle"?: NonNullable<Json>,"id"?: string,"nombre"?: string
+                  }
+                  Relationships: [
+
+                  ]
                 },"proveedores": {
                   Row: {
                     "activo": boolean,"agente_retencion": boolean,"ciudad": string,"contribuyente_especial": boolean,"dias_credito": number,"email_principal": string,"id": string,"nombre_comercial": string,"obliga_contabilidad": boolean,"razon_social": string,"ruc": string,"telefono_principal": string,"tipo_contribuyente": Database["public"]['Enums']["tipo_contribuyente"]

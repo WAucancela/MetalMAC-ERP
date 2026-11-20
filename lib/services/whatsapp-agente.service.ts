@@ -15,6 +15,7 @@
  * Requiere ANTHROPIC_API_KEY (ya usada por cotizacion-ia.service.ts).
  */
 import Anthropic from '@anthropic-ai/sdk';
+import { Resend } from 'resend';
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 // betaZodTool está tipado contra Zod v4 (`import * as z from 'zod/v4'` en su .d.ts) —
 // el resto del proyecto usa zod@3.25 clásico (`from 'zod'`), que no es estructuralmente
@@ -25,6 +26,7 @@ import { z } from 'zod/v4';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Database } from '@/types/supabase.types';
 import type { HistorialMensaje } from '@/lib/services/whatsapp-historial';
+import { leerConfiguracionSRI } from '@/lib/services/configuracion-sri.service';
 
 const client = new Anthropic();
 
@@ -40,19 +42,31 @@ const SYSTEM_PROMPT = `Sos el asistente de ventas de MetalMAC, un taller de meta
 Ecuador, atendiendo por WhatsApp. Hablás español neutro, en mensajes cortos
 (es WhatsApp, no email) y con buena onda, pero profesional.
 
-Tu única fuente de productos y precios es la tool "buscar_productos" — nunca
-inventes un producto, un código o un precio que no haya devuelto esa tool, ni
-redondees ni ajustes un precio.
+Tu única fuente de productos y precios es la tool "buscar_productos", y tu
+única fuente de servicios (estructura metálica, acero inoxidable, corte
+láser/CNC, seguridad perimetral, CCTV, señalética) es "buscar_servicios" —
+nunca inventes un producto, servicio, código, alcance o precio que no haya
+devuelto esa tool, ni redondees ni ajustes un precio.
 
 Flujo típico:
 1. El cliente describe lo que necesita. Si es ambiguo (no especifica cantidad,
    medida o variante), preguntá antes de buscar.
-2. Usá "buscar_productos" para encontrar los productos del catálogo que
-   correspondan. Si no encontrás nada razonable, decíselo al cliente en vez de
-   ofrecer algo que no existe — alguien del equipo lo puede atender a mano.
-3. Cuando el cliente confirme qué quiere y la cantidad de cada ítem, usá
-   "crear_cotizacion" para dejar la cotización armada.
-4. Contale el número de cotización y el total, y aclarale que el equipo la va
+2. Si pregunta por un producto de la tienda, usá "buscar_productos"; si
+   pregunta por un servicio industrial, usá "buscar_servicios". Si no
+   encontrás nada razonable, decíselo al cliente en vez de ofrecer algo que no
+   existe — alguien del equipo lo puede atender a mano.
+3. Cuando el cliente muestre intención real de comprar o cotizar (confirmó qué
+   quiere), llamá "consultar_datos_cliente" para ver qué datos ya tenés. Si
+   falta correo, empresa/razón social, RUC o cédula, o dirección, pedíselos
+   en un solo mensaje (no uno por uno) antes de cotizar — pero si el cliente
+   no quiere darlos o solo da algunos, no insistas ni bloquees la cotización:
+   guardá con "actualizar_datos_cliente" lo que sí te haya dado y seguí.
+4. Con los datos que haya (aunque sea solo el nombre), usá "crear_cotizacion"
+   para dejar la cotización armada — esta tool es solo para productos de
+   catálogo con precio fijo; una solicitud de servicio industrial (sin precio
+   de catálogo) se cotiza aparte, avisale que un asesor le va a mandar el
+   presupuesto.
+5. Contale el número de cotización y el total, y aclarale que el equipo la va
    a confirmar (plazos de entrega, forma de pago, etc. los define el staff —
    no los inventes vos).
 
@@ -91,6 +105,96 @@ const buscarProductosTool = betaZodTool({
     );
   },
 });
+
+const buscarServiciosTool = betaZodTool({
+  name: 'buscar_servicios',
+  description:
+    'Busca servicios activos del catálogo real de MetalMAC (estructura metálica, acero inoxidable, procesamiento industrial, seguridad perimetral, CCTV, señalética) por nombre, código o descripción. Devuelve código, nombre, descripción y el detalle del alcance de cada uno.',
+  inputSchema: z.object({
+    query: z.string().min(1).describe('Texto a buscar — nombre, código o parte de la descripción del servicio'),
+  }),
+  run: async ({ query }) => {
+    const { data, error } = await supabaseAdmin
+      .from('servicios')
+      .select('codigo, nombre, descripcion, detalle')
+      .eq('activo', true)
+      .or(`nombre.ilike.%${query}%,codigo.ilike.%${query}%,descripcion.ilike.%${query}%`)
+      .order('nombre')
+      .limit(8);
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      return 'Sin resultados — ningún servicio activo del catálogo matchea esa búsqueda.';
+    }
+    return JSON.stringify(
+      data.map((s) => ({
+        codigo: s.codigo,
+        nombre: s.nombre,
+        descripcion: s.descripcion,
+        detalle: s.detalle,
+      })),
+    );
+  },
+});
+
+interface DatosCliente {
+  id: string;
+  razon_social: string;
+  email: string;
+  nombre_comercial: string;
+  identificacion: string | null;
+  direccion: string;
+}
+
+function crearConsultarDatosClienteTool(cliente: DatosCliente | null) {
+  return betaZodTool({
+    name: 'consultar_datos_cliente',
+    description:
+      'Devuelve los datos del cliente ya guardados (nombre, correo, empresa, RUC/cédula, dirección). Usala antes de pedirle un dato para no preguntar algo que ya tenés.',
+    inputSchema: z.object({}),
+    run: async () => {
+      if (!cliente) return 'No se pudo identificar al cliente.';
+      return JSON.stringify({
+        nombre: cliente.razon_social,
+        email: cliente.email || null,
+        empresa: cliente.nombre_comercial || null,
+        identificacion: cliente.identificacion || null,
+        direccion: cliente.direccion || null,
+      });
+    },
+  });
+}
+
+function crearActualizarDatosClienteTool(clienteId: string | null) {
+  return betaZodTool({
+    name: 'actualizar_datos_cliente',
+    description:
+      'Guarda o actualiza los datos del cliente que te fue dando en la conversación. Mandá solo los campos que el cliente efectivamente dijo — nunca inventes ni completes uno que no mencionó.',
+    inputSchema: z.object({
+      email: z.string().email().optional(),
+      empresa: z.string().min(1).optional().describe('Nombre comercial o razón social de la empresa del cliente'),
+      identificacion: z.string().min(1).optional().describe('RUC o cédula'),
+      direccion: z.string().min(1).optional(),
+    }),
+    run: async (input) => {
+      if (!clienteId) return 'No se pudo identificar al cliente — no se guardó nada.';
+
+      const campos: Database['public']['Tables']['clientes']['Update'] = {};
+      if (input.email) campos.email = input.email;
+      if (input.empresa) campos.nombre_comercial = input.empresa;
+      if (input.identificacion) campos.identificacion = input.identificacion;
+      if (input.direccion) campos.direccion = input.direccion;
+
+      if (Object.keys(campos).length === 0) {
+        return 'No se mandó ningún dato para guardar.';
+      }
+
+      const { error } = await supabaseAdmin.from('clientes').update(campos).eq('id', clienteId);
+      if (error) throw error;
+      return 'Datos guardados.';
+    },
+  });
+}
 
 interface ContextoCotizacion {
   telefono: string;
@@ -214,14 +318,19 @@ function crearCrearCotizacionTool(contexto: ContextoCotizacion) {
   });
 }
 
-async function resolverCliente(telefono: string, nombreContacto: string) {
+const SELECT_DATOS_CLIENTE = 'id, razon_social, email, nombre_comercial, identificacion, direccion';
+
+async function resolverCliente(
+  telefono: string,
+  nombreContacto: string,
+): Promise<{ cliente: DatosCliente; esNuevo: boolean }> {
   const { data: existente } = await supabaseAdmin
     .from('clientes')
-    .select('id, razon_social')
+    .select(SELECT_DATOS_CLIENTE)
     .eq('whatsapp', telefono)
     .limit(1)
     .maybeSingle();
-  if (existente) return existente;
+  if (existente) return { cliente: existente, esNuevo: false };
 
   const { data: creado, error } = await supabaseAdmin
     .from('clientes')
@@ -231,10 +340,34 @@ async function resolverCliente(telefono: string, nombreContacto: string) {
       telefono,
       creado_por: null,
     })
-    .select('id, razon_social')
+    .select(SELECT_DATOS_CLIENTE)
     .single();
   if (error) throw error;
-  return creado;
+  return { cliente: creado, esNuevo: true };
+}
+
+const DESTINATARIO_VENTAS = 'ventas@tallermac.com';
+
+// No es crítico para responderle al cliente — si Resend falla, no debe tumbar
+// la conversación (mismo criterio que seguimiento-leads-tienda: avisar es un
+// "plus", no bloquea el flujo principal).
+async function notificarNuevoClienteWhatsApp(cliente: DatosCliente, telefono: string) {
+  try {
+    const config = await leerConfiguracionSRI();
+    if (!config.resendApiKey) return;
+    const resend = new Resend(config.resendApiKey);
+    await resend.emails.send({
+      from: config.resendFromEmail,
+      to: DESTINATARIO_VENTAS,
+      subject: `💬 Nuevo cliente por WhatsApp — ${cliente.razon_social}`,
+      text:
+        `Se registró un cliente nuevo desde WhatsApp.\n\n` +
+        `Nombre: ${cliente.razon_social}\nWhatsApp: ${telefono}\n\n` +
+        `Revisalo en el ERP: /clientes/${cliente.id}`,
+    });
+  } catch (e) {
+    console.error('[whatsapp-agente] notificarNuevoClienteWhatsApp', e);
+  }
 }
 
 type ConversacionRow = Database['public']['Tables']['whatsapp_conversaciones']['Row'];
@@ -278,12 +411,19 @@ export async function procesarMensajeEntrante(input: {
 }): Promise<string> {
   const { telefono, nombreContacto, texto } = input;
 
-  const [conversacion, cliente] = await Promise.all([
+  const [conversacion, { cliente, esNuevo }] = await Promise.all([
     cargarOCrearConversacion(telefono, nombreContacto),
     resolverCliente(telefono, nombreContacto),
   ]);
 
-  if (!conversacion.cliente_id && cliente) {
+  if (esNuevo) {
+    // No se espera (await) a propósito — avisar al staff no debe demorar la
+    // respuesta al cliente, y notificarNuevoClienteWhatsApp ya atrapa sus
+    // propios errores.
+    void notificarNuevoClienteWhatsApp(cliente, telefono);
+  }
+
+  if (!conversacion.cliente_id) {
     await supabaseAdmin
       .from('whatsapp_conversaciones')
       .update({ cliente_id: cliente.id })
@@ -295,9 +435,11 @@ export async function procesarMensajeEntrante(input: {
 
   const crearCotizacionTool = crearCrearCotizacionTool({
     telefono,
-    nombreCliente: cliente?.razon_social || nombreContacto || telefono,
-    clienteId: cliente?.id ?? null,
+    nombreCliente: cliente.razon_social || nombreContacto || telefono,
+    clienteId: cliente.id,
   });
+  const consultarDatosClienteTool = crearConsultarDatosClienteTool(cliente);
+  const actualizarDatosClienteTool = crearActualizarDatosClienteTool(cliente.id);
 
   const runner = client.beta.messages.toolRunner({
     // Haiku 5.5: para una tarea simple de alto volumen (buscar en el catálogo,
@@ -311,7 +453,13 @@ export async function procesarMensajeEntrante(input: {
     system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     output_config: { effort: 'low' },
     messages,
-    tools: [buscarProductosTool, crearCotizacionTool],
+    tools: [
+      buscarProductosTool,
+      buscarServiciosTool,
+      consultarDatosClienteTool,
+      actualizarDatosClienteTool,
+      crearCotizacionTool,
+    ],
     max_iterations: 8,
   });
 
