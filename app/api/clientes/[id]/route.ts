@@ -1,7 +1,7 @@
 /**
  * GET    /api/clientes/[id]  — detalle de cliente + historial unificado
  *                              (cotizaciones, proyectos, facturas de venta,
- *                              pedidos web, interacciones) — el "360°" del CRM.
+ *                              interacciones) — el "360°" del CRM.
  * PUT    /api/clientes/[id]  — actualiza cliente
  * DELETE /api/clientes/[id]  — soft delete (activo: false)
  */
@@ -34,7 +34,6 @@ export async function GET(
     { data: cotizacionesRows, error: cotizacionesError },
     { data: proyectosRows, error: proyectosError },
     { data: facturasRows, error: facturasError },
-    { data: pedidosRows, error: pedidosError },
     { data: interaccionesRows, error: interaccionesError },
   ] = await Promise.all([
     supabaseAdmin.from('clientes').select('*').eq('id', params.id).maybeSingle(),
@@ -57,12 +56,6 @@ export async function GET(
       .order('fecha_emision', { ascending: false })
       .limit(HISTORIAL_LIMIT),
     supabaseAdmin
-      .from('pedidos_woocommerce')
-      .select('id, numero_pedido, wc_status, estado_revision, total, moneda, recibido_en')
-      .eq('cliente_id', params.id)
-      .order('recibido_en', { ascending: false })
-      .limit(HISTORIAL_LIMIT),
-    supabaseAdmin
       .from('clientes_interacciones')
       .select('*')
       .eq('cliente_id', params.id)
@@ -75,7 +68,6 @@ export async function GET(
   if (cotizacionesError)  return NextResponse.json({ error: 'Error al obtener cotizaciones' }, { status: 500 });
   if (proyectosError)     return NextResponse.json({ error: 'Error al obtener proyectos' }, { status: 500 });
   if (facturasError)      return NextResponse.json({ error: 'Error al obtener facturas' }, { status: 500 });
-  if (pedidosError)       return NextResponse.json({ error: 'Error al obtener pedidos' }, { status: 500 });
   if (interaccionesError) return NextResponse.json({ error: 'Error al obtener interacciones' }, { status: 500 });
 
   return NextResponse.json({
@@ -93,10 +85,6 @@ export async function GET(
       facturas: (facturasRows ?? []).map((r) => ({
         id: r.id, numeroFactura: r.numero_factura, estado: r.estado,
         fechaEmision: r.fecha_emision, total: Number(r.total),
-      })),
-      pedidosWeb: (pedidosRows ?? []).map((r) => ({
-        id: r.id, numeroPedido: r.numero_pedido, wcStatus: r.wc_status, estadoRevision: r.estado_revision,
-        total: Number(r.total), moneda: r.moneda, recibidoEn: r.recibido_en,
       })),
       interacciones: (interaccionesRows ?? []).map(mapInteraccionRow),
     },

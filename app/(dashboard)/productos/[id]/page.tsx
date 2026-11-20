@@ -7,7 +7,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ChevronLeft, Package, Loader2, Pencil } from 'lucide-react';
+import { ChevronLeft, Package, Loader2, Pencil, Store } from 'lucide-react';
 
 import { Button }  from '@/components/ui/button';
 import { Badge }   from '@/components/ui/badge';
@@ -49,6 +49,17 @@ export default function ProductoDetallePage() {
       toast.success(producto.activo ? 'Producto desactivado' : 'Producto activado');
     } catch (e: any) {
       toast.error(e.message ?? 'Error al actualizar el producto');
+    }
+  }
+
+  const puedePublicarse = producto.tipo === 'PRODUCTO_TERMINADO' && producto.activo;
+
+  async function alternarPublicadoSitio() {
+    try {
+      await actualizarProducto.mutateAsync({ publicadoSitio: !producto.publicadoSitio });
+      toast.success(producto.publicadoSitio ? 'Retirado del sitio público' : 'Publicado en el sitio público');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Error al actualizar la publicación');
     }
   }
 
@@ -99,6 +110,9 @@ export default function ProductoDetallePage() {
           {producto.descripcion && (
             <p className="text-sm mt-2">{producto.descripcion}</p>
           )}
+          {producto.publicadoSitio && (
+            <p className="text-xs text-muted-foreground mt-2">Visible en el sitio público (tallermac-web)</p>
+          )}
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
@@ -111,6 +125,19 @@ export default function ProductoDetallePage() {
               <Pencil className="mr-2 h-4 w-4" /> Editar
             </Link>
           </Button>
+          {puedePublicarse && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={actualizarProducto.isPending}
+              onClick={alternarPublicadoSitio}
+            >
+              {actualizarProducto.isPending
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Store className="mr-2 h-4 w-4" />}
+              {producto.publicadoSitio ? 'Retirar del Sitio' : 'Publicar en Sitio'}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

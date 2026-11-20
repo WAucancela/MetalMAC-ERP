@@ -5,8 +5,7 @@
  *
  * Solo válido sobre una cotización APROBADA que todavía no se convirtió — no arma
  * órdenes de producción ni factura automáticamente, eso sigue el flujo normal
- * desde el proyecto ya creado (mismo criterio que pedidos_woocommerce, que tampoco
- * salta directo a factura).
+ * desde el proyecto ya creado.
  */
 
 import { NextResponse } from 'next/server';

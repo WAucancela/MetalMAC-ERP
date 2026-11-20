@@ -51,12 +51,6 @@ export type EstadoOrdenProduccion =
 
 export type EstadoOperacionProduccion = 'PENDIENTE' | 'COMPLETADA';
 
-export type EstadoRevisionPedido =
-  | 'PENDIENTE'
-  | 'EN_REVISION'
-  | 'CONVERTIDO'
-  | 'RECHAZADO';
-
 export type EstadoProyecto = 'PLANIFICACION' | 'ACTIVO' | 'PAUSADO' | 'COMPLETADO' | 'CANCELADO';
 
 export type CategoriaGasto =
@@ -336,7 +330,9 @@ export interface Cotizacion {
   ultimoSeguimientoEn: string | null;
   vecesRecordado: number;
   creadoEn: string;
-  creadoPor: string;
+  // Nullable desde la migración del agente de WhatsApp: una cotización creada por
+  // el bot no tiene un usuario humano logueado detrás.
+  creadoPor: string | null;
 }
 
 // ─────────────────────────────────────────────
@@ -436,6 +432,12 @@ export interface Producto {
   unidadVenta: string;
   precioVenta: number;
   activo: boolean;
+  // Una o más URLs separadas por salto de línea — se muestran tal cual en la
+  // ficha de producto de tallermac-web.
+  imagenUrls: string;
+  // Decisión directa del staff: si está en true y el producto está activo,
+  // aparece en productos_tienda_publica (el catálogo que lee tallermac-web).
+  publicadoSitio: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -678,33 +680,79 @@ export interface CajaMovimiento {
 }
 
 // ─────────────────────────────────────────────
-// Pedidos WooCommerce (tallermac.com) — bandeja de revisión
+// Solicitudes de contacto (sitio público tallermac-web) — bandeja de leads crudos
 // ─────────────────────────────────────────────
 
-export interface LineaPedidoWooCommerce {
+export type EstadoSolicitudContacto = 'NUEVA' | 'CONTACTADA' | 'DESCARTADA';
+
+export interface SolicitudContacto {
   id: string;
-  pedidoId: string;
-  wcLineItemId: number;
-  sku: string;
-  nombreProducto: string;
-  cantidad: number;
-  productoId: string | null;         // resuelto por SKU al ingerir; editable en revisión
-  ordenProduccionId: string | null;  // se fija al convertir la línea en OP
+  nombre: string;
+  email: string;
+  telefono: string;
+  servicioInteres: string;
+  descripcion: string;
+  estado: EstadoSolicitudContacto;
+  origen: string;
+  creadoEn: string;
 }
 
-export interface PedidoWooCommerce {
+// ─────────────────────────────────────────────
+// Pedidos de la Tienda de Muebles (sitio público tallermac-web) — bandeja de revisión
+// ─────────────────────────────────────────────
+
+export type EstadoPedidoTienda = 'PENDIENTE_CONTACTO' | 'CONTACTADO' | 'PAGADO' | 'ENTREGADO' | 'CANCELADO';
+
+export interface LineaPedidoTienda {
   id: string;
-  wcOrderId: number;
-  wcStatus: string;
-  numeroPedido: string;
+  pedidoId: string;
+  productoId: string | null;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface PedidoTienda {
+  id: string;
   clienteNombre: string;
   clienteEmail: string;
+  clienteTelefono: string;
   total: number;
-  moneda: string;
-  estadoRevision: EstadoRevisionPedido;
+  estado: EstadoPedidoTienda;
   notas: string;
-  lineas: LineaPedidoWooCommerce[];
-  recibidoEn: string;
-  procesadoEn: string | null;
-  procesadoPor: string | null;
+  lineas: LineaPedidoTienda[];
+  creadoEn: string;
+}
+
+// ─────────────────────────────────────────────
+// Agente de ventas de WhatsApp
+// ─────────────────────────────────────────────
+
+/**
+ * `CLIENTE`/`AGENTE` son turnos de texto real; `SISTEMA` es una acción del
+ * agente que no es texto (una búsqueda en el catálogo, una cotización creada)
+ * — se muestra en el timeline pero no es algo que haya "dicho" nadie.
+ */
+export type RolMensajeWhatsApp = 'CLIENTE' | 'AGENTE' | 'SISTEMA';
+
+export interface MensajeConversacionWhatsApp {
+  rol: RolMensajeWhatsApp;
+  texto: string;
+}
+
+export interface ConversacionWhatsAppResumen {
+  id: string;
+  telefono: string;
+  nombreContacto: string;
+  clienteId: string | null;
+  cotizacionBorradorId: string | null;
+  estado: 'ACTIVA' | 'CERRADA';
+  ultimoMensaje: string;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface ConversacionWhatsApp extends ConversacionWhatsAppResumen {
+  mensajes: MensajeConversacionWhatsApp[];
 }

@@ -117,6 +117,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   if (parsed.data.unidadVenta !== undefined)  update.unidad_venta = parsed.data.unidadVenta;
   if (parsed.data.precioVenta !== undefined)  update.precio_venta = parsed.data.precioVenta;
   if (parsed.data.activo !== undefined)       update.activo = parsed.data.activo;
+  if (parsed.data.imagenUrls !== undefined)   update.imagen_urls = parsed.data.imagenUrls;
+  if (parsed.data.publicadoSitio !== undefined) update.publicado_sitio = parsed.data.publicadoSitio;
 
   const { data: updated, error } = await supabaseAdmin
     .from('productos')

@@ -1,9 +1,8 @@
 /**
  * scripts/migrar-clientes.ts — Backfill de la tabla `clientes` a partir de
  * los datos que hoy viven como texto libre y desconectado en `facturas_venta`
- * (cliente_nombre + cliente_ruc), `cotizaciones` (cliente_nombre + email),
- * `pedidos_woocommerce` (cliente_nombre + email) y `proyectos` (solo
- * `cliente`, un campo de texto sin email ni RUC).
+ * (cliente_nombre + cliente_ruc), `cotizaciones` (cliente_nombre + email)
+ * y `proyectos` (solo `cliente`, un campo de texto sin email ni RUC).
  *
  * Estrategia de deduplicación — "automático conservador": solo fusiona
  * cuando hay una coincidencia de alta confianza; si no, crea un cliente
@@ -11,7 +10,7 @@
  *
  *   1. facturas_venta primero — tiene el dato más confiable (RUC real).
  *      Agrupa por `cliente_ruc` exacto.
- *   2. cotizaciones y pedidos_woocommerce — sin RUC, pero con email. Busca
+ *   2. cotizaciones — sin RUC, pero con email. Busca
  *      un cliente ya creado por email exacto (case-insensitive); si no,
  *      por nombre exacto (trim + case-insensitive); si no, crea uno nuevo
  *      con `identificacion = null`.
@@ -119,7 +118,7 @@ function buscarClienteExistente(opts: { identificacion?: string | null; email?: 
   return porNombre.get(norm(opts.nombre));
 }
 
-async function enlazar(tabla: 'cotizaciones' | 'proyectos' | 'facturas_venta' | 'pedidos_woocommerce', id: string, clienteId: string) {
+async function enlazar(tabla: 'cotizaciones' | 'proyectos' | 'facturas_venta', id: string, clienteId: string) {
   if (DRY_RUN) return;
   const { error } = await supabase.from(tabla).update({ cliente_id: clienteId }).eq('id', id);
   if (error) throw error;
@@ -177,31 +176,7 @@ async function migrarCotizaciones() {
   console.log(`  ${enlazados} cotizaciones enlazadas, ${creados} clientes nuevos`);
 }
 
-// ── 3. pedidos_woocommerce — por email, luego nombre ────────────────────────
-
-async function migrarPedidosWooCommerce() {
-  console.log('\n🛒 pedidos_woocommerce (por email / nombre):');
-  const { data, error } = await supabase
-    .from('pedidos_woocommerce')
-    .select('id, cliente_nombre, cliente_email')
-    .is('cliente_id', null);
-  if (error) throw error;
-
-  let creados = 0, enlazados = 0;
-  for (const row of data ?? []) {
-    if (!row.cliente_nombre?.trim()) continue; // pedido sin datos de cliente resuelto todavía
-    let cliente = buscarClienteExistente({ email: row.cliente_email, nombre: row.cliente_nombre });
-    if (!cliente) {
-      cliente = await crearCliente({ razonSocial: row.cliente_nombre, email: row.cliente_email ?? '' });
-      creados++;
-    }
-    await enlazar('pedidos_woocommerce', row.id, cliente.id);
-    enlazados++;
-  }
-  console.log(`  ${enlazados} pedidos enlazados, ${creados} clientes nuevos`);
-}
-
-// ── 4. proyectos — solo nombre (la señal más débil, se procesa último) ─────
+// ── 3. proyectos — solo nombre (la señal más débil, se procesa último) ─────
 
 async function migrarProyectos() {
   console.log('\n📁 proyectos (por nombre exacto — sin email/RUC disponible):');
@@ -232,7 +207,6 @@ async function main() {
 
   await migrarFacturasVenta();
   await migrarCotizaciones();
-  await migrarPedidosWooCommerce();
   await migrarProyectos();
 
   console.log(`\n✅ Listo. Total de clientes en el sistema: ${porNombre.size}`);

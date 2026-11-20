@@ -149,48 +149,32 @@ O simplemente haz push al branch `main` si conectaste el repositorio desde verce
 
 ---
 
-## Integración WooCommerce (tallermac.com)
+## Sitio público (tallermac-web)
 
-Los pedidos hechos en tallermac.com llegan al ERP vía webhook y quedan en una bandeja de
-revisión (`/pedidos-woocommerce`) — nunca crean una Orden de Producción automáticamente.
-El staff (GERENTE/PRODUCCION) decide manualmente qué línea de qué pedido se convierte en
-qué orden.
+tallermac.com ya no corre en WordPress/WooCommerce — es un proyecto Next.js aparte
+(`tallermac-web`) que lee y escribe directo contra esta misma base de Supabase. No hay
+webhook ni sincronización intermediaria: el sitio público consulta `productos_tienda_publica`
+para el catálogo, e inserta directo en `solicitudes_contacto` (formulario de contacto) y
+`pedidos_tienda` (carrito) — ambas con RLS que solo permite `INSERT` al rol `anon`.
 
-Para esta fase (solo recepción) **no hace falta** generar Consumer Key/Secret de la REST
-API de WooCommerce — sólo el secreto que WooCommerce genera al crear el webhook.
+### Publicar un producto en el sitio
 
-### Configurar el webhook en WordPress
+El botón **Publicar en Sitio** (en el detalle de un producto, `/productos/[id]`) solo
+aparece para productos `PRODUCTO_TERMINADO` y activos; un semielaborado no se vende suelto.
+Alternarlo escribe `productos.publicado_sitio`, que junto con `activo = true` es la única
+condición de la vista `productos_tienda_publica` que lee tallermac-web. Sin ninguna imagen
+(`productos.imagen_urls` vacío) el producto de todas formas queda visible, solo que sin
+foto — subí una desde Editar → Imágenes (se guarda en el bucket público `productos-imagenes`
+de Supabase Storage) o pegá la URL de una ya publicada en otro lado.
 
-Una vez el ERP esté desplegado en Vercel:
+### Leads y pedidos del sitio
 
-1. WordPress Admin → **WooCommerce → Ajustes → Avanzado → Webhooks → Agregar webhook**
-2. Crea dos webhooks (uno por cada evento):
-   - **Nombre**: `MetalMAC ERP — Pedido creado` / **Tema**: `Pedido creado`
-   - **Nombre**: `MetalMAC ERP — Pedido actualizado` / **Tema**: `Pedido actualizado`
-3. En ambos:
-   - **URL de entrega**: `https://tu-proyecto.vercel.app/api/webhooks/woocommerce`
-   - **Secreto**: genera una cadena aleatoria larga (ej. `openssl rand -hex 32`) y usa
-     **el mismo valor en los dos webhooks**
-   - **Estado**: Activo
-4. Copia ese secreto como `WOOCOMMERCE_WEBHOOK_SECRET` en Vercel (Settings → Environment
-   Variables) y vuelve a desplegar para que tome efecto.
+- `/solicitudes-contacto` — bandeja de leads del formulario de contacto (GERENTE/PRODUCCION).
+- `/pedidos-tienda` — bandeja de pedidos del carrito (GERENTE/PRODUCCION).
 
-### Verificar la conexión
-
-1. Crea un pedido de prueba en tallermac.com (o reenvía la entrega desde WooCommerce →
-   Webhooks → el webhook → pestaña "Entregas" → **Reenviar**)
-2. Entra a `/pedidos-woocommerce` en el ERP → el pedido debe aparecer como **Pendiente**
-3. Abre el pedido, revisa sus líneas y usa **Convertir a Orden de Producción** en la
-   línea que corresponda — si el SKU de WooCommerce coincide con `productos.codigo`, el
-   producto viene pre-seleccionado
-
-### Mapeo de SKU
-
-Cada línea intenta resolverse automáticamente contra `productos.codigo` por coincidencia
-exacta (sin distinguir mayúsculas). Si no hay match, la línea llega sin producto
-pre-seleccionado y el staff lo elige a mano en la bandeja de revisión — asegúrate de que
-los SKU en tallermac.com coincidan con los códigos de producto del ERP para aprovechar el
-auto-match.
+Ambos disparan una confirmación instantánea por WhatsApp al cliente desde tallermac-web
+mismo, y un cron en este ERP (`seguimiento-leads-tienda`, cada 4 horas) avisa por email
+interno si un lead/pedido queda sin atender más de 4 horas.
 
 ---
 
@@ -204,6 +188,54 @@ auto-match.
 | `CONTABILIDAD` | Proveedores, facturas de compra |
 
 Asignar con: `npm run create-admin -- email@empresa.com ROL`
+
+---
+
+## Rate limiting (Vercel Firewall)
+
+El ERP no tiene ningún rate limiting propio — un endpoint es alcanzable sin login
+y vale la pena proteger a nivel de plataforma (gratis en cualquier plan, no
+consume cuota de la función):
+
+- `GET /api/clientes/consultar-identificacion` — pega contra un endpoint no
+  oficial del SRI (`srienlinea.sri.gob.ec`); un abuso acá puede hacer que el SRI
+  nos banee la IP de salida de Vercel para todo el proyecto.
+
+Requiere `npm i -g vercel`, `vercel login` y `vercel link` (una vez). Los cambios
+quedan en borrador hasta `vercel firewall publish --yes` — revisar con
+`vercel firewall diff` antes de publicar.
+
+```bash
+vercel firewall rules add "Rate limit consulta SRI" \
+  --condition '{"type":"path","op":"eq","value":"/api/clientes/consultar-identificacion"}' \
+  --action rate_limit \
+  --rate-limit-window 60 \
+  --rate-limit-requests 20 \
+  --rate-limit-keys ip \
+  --rate-limit-action deny \
+  --yes
+
+vercel firewall diff
+vercel firewall publish --yes
+```
+
+El límite de arriba es un punto de partida generoso (tráfico legítimo real de
+un taller nunca se acerca a 20 consultas/min desde una sola IP) — si el dashboard
+de Firewall muestra falsos positivos, subirlo.
+
+---
+
+## Backups / recuperación ante desastres
+
+Supabase hace backups diarios automáticos en todos los planes, pero **Point-in-Time
+Recovery (PITR)** — poder restaurar a un minuto específico, no solo al snapshot
+de la noche anterior — requiere el add-on pago de PITR (Pro plan en adelante).
+Sin PITR, perder datos entre el último backup diario y un `DELETE`/migración mal
+corrida es un riesgo real para datos de facturación/inventario reales.
+
+Antes de depender de esto en producción: confirmar en Supabase Dashboard →
+Project Settings → Add-ons cuál es el plan/retención actual del proyecto
+`metalmac-erp`, y si hace falta subir de plan para tener PITR.
 
 ---
 
@@ -254,8 +286,8 @@ facturas_venta             → cabecera de venta
 factura_venta_lineas       → líneas de factura de venta
 perfiles                   → espejo legible de app_metadata.rol (Auth)
 contadores_anuales         → secuencias OP-YYYY-NNNN, PRY-YYYY-NNNN (siguiente_secuencia_anual)
-pedidos_woocommerce        → bandeja de revisión, cabecera de pedidos de tallermac.com
-pedido_woocommerce_lineas  → líneas del pedido; producto_id resuelto por SKU, orden_produccion_id al convertir
+solicitudes_contacto       → leads del formulario de contacto de tallermac-web
+pedidos_tienda             → pedidos del carrito de tallermac-web
 ```
 
 Todas las tablas usan Row Level Security (`supabase/migrations/*_rls_policies.sql`); las mutaciones con reglas de negocio (stock, órdenes, proyectos, contadores) pasan por funciones RPC `SECURITY DEFINER` en vez de updates directos desde la API.

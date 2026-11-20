@@ -1,7 +1,7 @@
 /**
  * /clientes/[id] — Vista 360° del cliente: datos + timeline de interacciones +
- * historial unificado (cotizaciones, proyectos, facturas de venta, pedidos
- * web) traído en un solo GET desde /api/clientes/[id].
+ * historial unificado (cotizaciones, proyectos, facturas de venta) traído en
+ * un solo GET desde /api/clientes/[id].
  */
 'use client';
 
@@ -14,7 +14,7 @@ import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   ArrowLeft, Users, Phone, Mail, MapPin, MessageCircle, Edit2, Trash2,
-  FileText, FolderOpen, Receipt, ShoppingCart, Plus, Loader2,
+  FileText, FolderOpen, Receipt, Plus, Loader2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ const TIPO_INTERACCION_LABEL: Record<string, string> = {
   LLAMADA: 'Llamada', EMAIL: 'Email', REUNION: 'Reunión', NOTA: 'Nota',
 };
 
-type TabKey = 'cotizaciones' | 'proyectos' | 'facturas' | 'pedidos' | 'notas';
+type TabKey = 'cotizaciones' | 'proyectos' | 'facturas' | 'notas';
 
 export default function ClienteDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -100,13 +100,12 @@ export default function ClienteDetallePage() {
     );
   }
 
-  const { cliente, cotizaciones, proyectos, facturas, pedidosWeb, interacciones } = data;
+  const { cliente, cotizaciones, proyectos, facturas, interacciones } = data;
 
   const TABS: Array<{ key: TabKey; label: string; icon: typeof FileText; count: number }> = [
     { key: 'cotizaciones', label: 'Cotizaciones', icon: FileText,     count: cotizaciones.length },
     { key: 'proyectos',    label: 'Proyectos',     icon: FolderOpen,  count: proyectos.length },
     { key: 'facturas',     label: 'Facturas',      icon: Receipt,     count: facturas.length },
-    { key: 'pedidos',      label: 'Pedidos Web',   icon: ShoppingCart,count: pedidosWeb.length },
     { key: 'notas',        label: 'Notas',         icon: MessageCircle, count: interacciones.length },
   ];
 
@@ -220,23 +219,6 @@ export default function ClienteDetallePage() {
                     <td className="px-4 py-3"><Badge variant="outline">{f.estado}</Badge></td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(f.fechaEmision)}</td>
                     <td className="px-4 py-3 text-right font-medium">{formatUSD(f.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        )}
-
-        {tab === 'pedidos' && (
-          pedidosWeb.length === 0 ? <EmptyRow texto="Sin pedidos de tallermac.com" /> : (
-            <table className="w-full text-sm">
-              <tbody className="divide-y">
-                {pedidosWeb.map((p) => (
-                  <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => router.push(`/pedidos-woocommerce/${p.id}`)}>
-                    <td className="px-4 py-3 font-mono text-xs">{p.numeroPedido}</td>
-                    <td className="px-4 py-3"><Badge variant="outline">{p.estadoRevision}</Badge></td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(p.recibidoEn)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{formatUSD(p.total)}</td>
                   </tr>
                 ))}
               </tbody>

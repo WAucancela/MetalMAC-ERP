@@ -163,3 +163,28 @@ export function useActualizarProducto(id: string) {
     },
   });
 }
+
+/** Sube una foto de producto a Storage y la agrega a `imagenUrls` — persiste de inmediato. */
+export function useSubirImagenProducto(id: string) {
+  const { token } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File): Promise<{ url: string; imagenUrls: string }> => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`/api/productos/${id}/imagenes`, {
+        method: 'POST',
+        headers: authHeaders(token ?? ''),
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? 'Error al subir la imagen');
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['productos'] });
+      qc.invalidateQueries({ queryKey: ['productos', id] });
+    },
+  });
+}
